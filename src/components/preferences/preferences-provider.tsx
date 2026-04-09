@@ -18,7 +18,6 @@ type PreferencesContextValue = {
   theme: Theme;
   toggleTheme: () => void;
   t: (key: TranslationKey, vars?: Record<string, string | number>) => string;
-  languageShortLabel: string;
 };
 
 const PreferencesContext = createContext<PreferencesContextValue | null>(null);
@@ -81,9 +80,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
     [language],
   );
 
-  const languageShortLabel = useMemo(() => {
-    return languageOptions.find((l) => l.code === language)?.short ?? "EN";
-  }, [language]);
+
 
   const value = useMemo<PreferencesContextValue>(
     () => ({
@@ -92,9 +89,8 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
       theme,
       toggleTheme,
       t,
-      languageShortLabel,
     }),
-    [language, setLanguage, theme, toggleTheme, t, languageShortLabel],
+    [language, setLanguage, theme, toggleTheme, t],
   );
 
   return <PreferencesContext.Provider value={value}>{children}</PreferencesContext.Provider>;

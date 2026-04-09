@@ -5,20 +5,15 @@ import { BookOpen, Home, Layers2, Moon, Sun, User } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { usePreferences } from "@/components/preferences/preferences-provider";
 import { Button } from "@/components/ui/button";
-import type { Language } from "@/lib/i18n/messages";
+import { languageOptions, type Language } from "@/lib/i18n/messages";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
-
-const languageOrder: Language[] = ["en", "ms", "zh-Hans"];
+import { Select } from "@/components/ui/select";
 
 export function MobileBottomNav() {
-  const { t, theme, toggleTheme, language, setLanguage, languageShortLabel } = usePreferences();
+  const { t, theme, toggleTheme, language, setLanguage } = usePreferences();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  const cycleLanguage = useCallback(() => {
-    const idx = languageOrder.indexOf(language);
-    const next = languageOrder[(idx + 1) % languageOrder.length];
-    setLanguage(next);
-  }, [language, setLanguage]);
+
 
   const themeAriaLabel = theme === "dark" ? t("theme.light") : t("theme.dark");
 
@@ -66,9 +61,18 @@ export function MobileBottomNav() {
         <Button variant="outline" size="sm" onClick={toggleTheme} aria-label={themeAriaLabel}>
           {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </Button>
-        <Button variant="outline" size="sm" onClick={cycleLanguage} aria-label={t("nav.language")}>
-          {languageShortLabel}
-        </Button>
+        <Select
+          value={language}
+          onChange={(e) => setLanguage(e.target.value as Language)}
+          aria-label={t("nav.language")}
+          className="h-9 w-auto border-foreground/20 py-1 cursor-pointer font-semibold"
+        >
+          {languageOptions.map((opt) => (
+            <option key={opt.code} value={opt.code}>
+              {opt.short}
+            </option>
+          ))}
+        </Select>
       </div>
     </nav>
   );
