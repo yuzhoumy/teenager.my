@@ -6,7 +6,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
-      <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-6 md:pb-8">{children}</main>
+      <main className="mx-auto w-full max-w-[1200px] px-4 pb-32 pt-6 sm:px-6 lg:px-8 lg:pb-12 lg:pt-10">
+        {children}
+      </main>
       <MobileBottomNav />
     </div>
   );

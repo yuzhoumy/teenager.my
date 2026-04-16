@@ -46,9 +46,10 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="mx-auto w-full max-w-md">
-      <h1 className="mb-1 text-2xl font-bold">{t("auth.welcomeBack")}</h1>
-      <p className="mb-5 text-sm text-foreground/70">{t("auth.loginSubtitle")}</p>
+    <Card className="mx-auto w-full max-w-md rounded-[32px]">
+      <p className="mb-3 text-sm uppercase tracking-[0.18em] text-text-soft">Account</p>
+      <h1 className="mb-1 text-4xl text-foreground">{t("auth.welcomeBack")}</h1>
+      <p className="mb-6 text-sm text-text-muted">{t("auth.loginSubtitle")}</p>
       <form onSubmit={onSubmit} className="space-y-4">
         <Input
           type="email"
@@ -64,15 +65,15 @@ export function LoginForm() {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
-        {error ? <p className="text-sm text-rose-600">{error}</p> : null}
-        {status ? <p className="text-sm text-emerald-600">{status}</p> : null}
+        {error ? <p className="text-sm text-[#b53333]">{error}</p> : null}
+        {status ? <p className="text-sm text-brand">{status}</p> : null}
         <Button type="submit" className="w-full" disabled={loading}>
           {loading ? t("auth.signingIn") : t("auth.loginButton")}
         </Button>
       </form>
-      <p className="mt-4 text-sm text-foreground/70">
+      <p className="mt-5 text-sm text-text-muted">
         {t("auth.noAccountYet")}{" "}
-        <Link href="/register" className="font-semibold text-sky-600 hover:text-sky-500">
+        <Link href="/register" className="font-semibold text-brand hover:text-brand-soft">
           {t("auth.registerLink")}
         </Link>
       </p>

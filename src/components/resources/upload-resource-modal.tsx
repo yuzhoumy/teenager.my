@@ -15,19 +15,18 @@ export function UploadResourceModal() {
     <>
       <Button onClick={() => setOpen(true)}>{t("upload.uploadResourceButton")}</Button>
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-background p-5 shadow-lg">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4">
+          <div className="w-full max-w-lg rounded-[32px] border border-border bg-background p-6 shadow-[0_24px_70px_rgba(0,0,0,0.24)]">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">{t("upload.modalTitle")}</h2>
+              <h2 className="text-2xl text-foreground">{t("upload.modalTitle")}</h2>
               <button
                 type="button"
-                className="rounded-md px-2 py-1 text-foreground/70 hover:bg-foreground/5"
+                className="rounded-xl px-3 py-2 text-text-muted hover:bg-surface-muted hover:text-foreground"
                 onClick={() => setOpen(false)}
               >
                 {t("upload.close")}
               </button>
             </div>
-            {/* TODO: Connect file upload with Supabase Storage and resources insert */}
             <form className="space-y-3">
               <Input placeholder={t("upload.titlePlaceholder")} required />
               <Input placeholder={t("upload.subjectPlaceholder")} required />

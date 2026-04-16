@@ -21,7 +21,7 @@ type Props = {
 export function ResourceFiltersBar({ filters, onChange }: Props) {
   const { t } = usePreferences();
   return (
-    <div className="grid gap-3 rounded-2xl border bg-background p-4 md:grid-cols-6">
+    <div className="grid gap-3 rounded-[30px] border border-border bg-surface p-4 shadow-[0_4px_24px_var(--shadow)] md:grid-cols-6">
       <Input
         className="md:col-span-2"
         placeholder={t("resourceFilters.searchPlaceholder")}

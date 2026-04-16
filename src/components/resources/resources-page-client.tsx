@@ -67,11 +67,12 @@ export function ResourcesPageClient() {
   const pagedResources = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   return (
-    <section className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <section className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">{t("resources.title")}</h1>
-          <p className="text-sm text-foreground/70">{t("resources.subtitle")}</p>
+          <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Library</p>
+          <h1 className="mt-2 text-4xl text-foreground sm:text-5xl">{t("resources.title")}</h1>
+          <p className="mt-3 max-w-2xl text-base text-text-muted">{t("resources.subtitle")}</p>
         </div>
         <UploadResourceModal />
       </div>
@@ -82,13 +83,13 @@ export function ResourcesPageClient() {
           setPage(1);
         }}
       />
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2">
         {pagedResources.map((resource) => (
           <ResourceCard key={resource.id} resource={resource} />
         ))}
       </div>
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-foreground/70">
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-sm text-text-muted">
           {t("resources.pagination.pageOf", { page, totalPages })}
         </p>
         <div className="flex gap-2">

@@ -17,17 +17,17 @@ export function ResourceCard({ resource }: { resource: StudyResource }) {
   };
 
   return (
-    <Card>
-      <div className="mb-3 flex items-start justify-between gap-3">
+    <Card className="rounded-[28px]">
+      <div className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <h3 className="font-semibold text-foreground">{resource.title}</h3>
-          <p className="text-sm text-foreground/70">
+          <h3 className="text-2xl text-foreground">{resource.title}</h3>
+          <p className="mt-2 text-sm text-text-muted">
             {resource.subject} • {t("resourceCard.formLine", { form: resource.form_level })}
           </p>
         </div>
         <Badge>{categoryLabel[resource.category]}</Badge>
       </div>
-      <div className="mb-4 flex items-center gap-3 text-xs text-foreground/60">
+      <div className="mb-5 flex items-center gap-3 text-xs text-text-soft">
         <span>{t("resourceCard.year", { year: resource.year })}</span>
         <span className="inline-flex items-center gap-1">
           <Download className="h-3.5 w-3.5" /> {resource.downloads}
@@ -37,9 +37,8 @@ export function ResourceCard({ resource }: { resource: StudyResource }) {
         <Button asChild size="sm">
           <a href={resource.file_url}>{t("resourceCard.download")}</a>
         </Button>
-        {/* TODO: Connect bookmark action to resource_bookmarks table */}
         <Button size="sm" variant="outline">
-          <Bookmark className="mr-1 h-4 w-4" />
+          <Bookmark className="h-4 w-4" />
           {t("resourceCard.bookmark")}
         </Button>
       </div>

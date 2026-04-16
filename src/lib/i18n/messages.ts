@@ -4,7 +4,7 @@ export const languageOptions: Array<{ code: Language; label: string; htmlLang: s
   [
     { code: "en", label: "English", htmlLang: "en", short: "EN" },
     { code: "ms", label: "Bahasa Melayu", htmlLang: "ms-MY", short: "BM" },
-    { code: "zh-Hans", label: "简体中文", htmlLang: "zh-CN", short: "中文" },
+    { code: "zh-Hans", label: "简体中文", htmlLang: "zh-CN", short: "华文" },
   ];
 
 export const messages = {
