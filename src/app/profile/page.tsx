@@ -1,5 +1,6 @@
 "use client";
 
+import { Download } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,17 +11,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { usePreferences } from "@/components/preferences/preferences-provider";
+import type { Database } from "@/types/database";
+import type { StudyMaterial } from "@/types/resource";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
-
-const placeholderBookmarks = [
-  "SPM Trial Add Maths 2024 - Johor",
-  "English Writing Notes - SPM",
-];
 
 const placeholderUploads = [
   "Form 3 Science Notes - Chapter 6",
   "Form 1 BM Notes - Tatabahasa",
 ];
+
+type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
+type MaterialBookmarkRow = Database["public"]["Tables"]["material_bookmarks"]["Row"];
+type MaterialRow = Database["public"]["Tables"]["materials"]["Row"];
+type ProfileInsert = Database["public"]["Tables"]["profiles"]["Insert"];
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -37,6 +40,8 @@ export default function ProfilePage() {
   const [formLevel, setFormLevel] = useState("1");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [savedResources, setSavedResources] = useState<StudyMaterial[]>([]);
+  const [loadingSavedResources, setLoadingSavedResources] = useState(false);
 
   const avatarPreview = useMemo(() => avatarUrl.trim(), [avatarUrl]);
 
@@ -69,13 +74,15 @@ export default function ProfilePage() {
 
       setIsLoggedIn(true);
       setUserId(user.id);
+      setLoadingSavedResources(true);
 
-      const db = supabase as any;
-      const { data: profile, error: profileError } = await db
+      const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("display_name, school, form, avatar_url")
         .eq("user_id", user.id)
         .maybeSingle();
+
+      const profile = profileData as Pick<ProfileRow, "display_name" | "school" | "form" | "avatar_url"> | null;
 
       if (profileError) {
         if (profileError.code !== "PGRST205") {
@@ -91,6 +98,47 @@ export default function ProfilePage() {
       setAvatarUrl(
         profile?.avatar_url ?? (user.user_metadata.avatar_url as string | undefined) ?? "",
       );
+
+      const { data: bookmarksData, error: bookmarkError } = await supabase
+        .from("material_bookmarks")
+        .select("material_id")
+        .eq("user_id", user.id);
+
+      const bookmarks = (bookmarksData ?? []) as Array<Pick<MaterialBookmarkRow, "material_id">>;
+
+      if (bookmarkError) {
+        setError(bookmarkError.message);
+        setLoadingSavedResources(false);
+        setLoadingProfile(false);
+        return;
+      }
+
+      const materialIds = (bookmarks ?? []).map((bookmark) => bookmark.material_id);
+
+      if (materialIds.length === 0) {
+        setSavedResources([]);
+        setLoadingSavedResources(false);
+        setLoadingProfile(false);
+        return;
+      }
+
+      const { data: materialsData, error: materialsError } = await supabase
+        .from("materials")
+        .select("*")
+        .in("id", materialIds)
+        .order("year", { ascending: false })
+        .order("created_at", { ascending: false });
+
+      if (materialsError) {
+        setError(materialsError.message);
+        setLoadingSavedResources(false);
+        setLoadingProfile(false);
+        return;
+      }
+
+      const materials = (materialsData ?? []) as MaterialRow[];
+      setSavedResources(materials as StudyMaterial[]);
+      setLoadingSavedResources(false);
       setLoadingProfile(false);
     }
 
@@ -146,15 +194,16 @@ export default function ProfilePage() {
       nextAvatarUrl = publicUrlData.publicUrl;
     }
 
-    const db = supabase as any;
-    const { error: upsertError } = await db.from("profiles").upsert(
-      {
-        user_id: userId,
-        display_name: displayName,
-        school,
-        form: nextForm,
-        avatar_url: nextAvatarUrl,
-      },
+    const profilePayload: ProfileInsert = {
+      user_id: userId,
+      display_name: displayName,
+      school,
+      form: nextForm,
+      avatar_url: nextAvatarUrl,
+    };
+
+    const { error: upsertError } = await supabase.from("profiles").upsert(
+      profilePayload as never,
       { onConflict: "user_id" },
     );
 
@@ -289,13 +338,33 @@ export default function ProfilePage() {
 
       <Card>
         <h2 className="mb-2 font-semibold">{t("profile.bookmarkedResources")}</h2>
-        <ul className="space-y-2 text-sm text-foreground/70">
-          {placeholderBookmarks.map((item) => (
-            <li key={item} className="rounded-lg bg-foreground/5 px-3 py-2">
-              {item}
-            </li>
-          ))}
-        </ul>
+        {loadingSavedResources ? (
+          <p className="text-sm text-foreground/70">Loading saved resources...</p>
+        ) : savedResources.length === 0 ? (
+          <p className="text-sm text-foreground/70">No saved resources yet.</p>
+        ) : (
+          <ul className="space-y-2">
+            {savedResources.map((resource) => (
+              <li
+                key={resource.id}
+                className="flex flex-col gap-3 rounded-lg bg-foreground/5 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <p className="font-medium text-foreground">{resource.title}</p>
+                  <p className="text-sm text-foreground/70">
+                    {resource.subject} • {resource.year} • {resource.origin}
+                  </p>
+                </div>
+                <Button asChild size="sm">
+                  <a href={resource.file_url}>
+                    <Download className="h-4 w-4" />
+                    Download
+                  </a>
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
       </Card>
 
       <Card>
