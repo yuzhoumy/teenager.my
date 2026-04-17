@@ -29,7 +29,7 @@ function FilterSection({
 export function ResourceFiltersBar({ facets }: Props) {
   const { t } = usePreferences();
   const { filters, setGrade, toggleSubject, toggleTag, toggleOrigin, clearAll } = useMaterialFilters();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(true);
 
   return (
     <aside className="rounded-[30px] border border-border bg-surface p-5 shadow-[0_4px_24px_var(--shadow)] lg:sticky lg:top-28">
