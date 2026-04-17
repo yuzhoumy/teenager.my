@@ -118,7 +118,7 @@ export async function getMaterials(filters: MaterialFilters) {
   }
 
   if (filters.tags.length > 0) {
-    query = query.contains("category_tags", filters.tags);
+    query = query.overlaps("category_tags", filters.tags);
   }
 
   if (filters.origins.length > 0) {
