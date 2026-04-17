@@ -1,61 +1,148 @@
 "use client";
 
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { useState } from "react";
+import type { MaterialGrade, MaterialTag } from "@/types/database";
+import { getMaterialGradeLabel, getMaterialTagLabel, type MaterialFacets } from "@/lib/materials";
+import { useMaterialFilters } from "@/components/resources/use-material-filters";
+import { Button } from "@/components/ui/button";
 import { usePreferences } from "@/components/preferences/preferences-provider";
 
-export type ResourceFilters = {
-  search: string;
-  subject: string;
-  formLevel: string;
-  category: string;
-  year: string;
-  sortBy: "latest" | "downloads";
-};
-
 type Props = {
-  filters: ResourceFilters;
-  onChange: (next: ResourceFilters) => void;
+  facets: MaterialFacets;
 };
 
-export function ResourceFiltersBar({ filters, onChange }: Props) {
-  const { t } = usePreferences();
+function FilterSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="grid gap-3 rounded-[30px] border border-border bg-surface p-4 shadow-[0_4px_24px_var(--shadow)] md:grid-cols-6">
-      <Input
-        className="md:col-span-2"
-        placeholder={t("resourceFilters.searchPlaceholder")}
-        value={filters.search}
-        onChange={(e) => onChange({ ...filters, search: e.target.value })}
-      />
-      <Input
-        placeholder={t("resourceFilters.subjectPlaceholder")}
-        value={filters.subject}
-        onChange={(e) => onChange({ ...filters, subject: e.target.value })}
-      />
-      <Select value={filters.formLevel} onChange={(e) => onChange({ ...filters, formLevel: e.target.value })}>
-        <option value="">{t("resourceFilters.allForms")}</option>
-        {[1, 2, 3, 4, 5].map((form) => (
-          <option key={form} value={form}>
-            {t("resourceFilters.formOption", { form })}
-          </option>
-        ))}
-      </Select>
-      <Select value={filters.category} onChange={(e) => onChange({ ...filters, category: e.target.value })}>
-        <option value="">{t("resourceFilters.allCategories")}</option>
-        <option value="trial_paper">{t("resourceFilters.category.trial_paper")}</option>
-        <option value="past_year_paper">{t("resourceFilters.category.past_year_paper")}</option>
-        <option value="notes">{t("resourceFilters.category.notes")}</option>
-      </Select>
-      <Input
-        placeholder={t("resourceFilters.yearPlaceholder")}
-        value={filters.year}
-        onChange={(e) => onChange({ ...filters, year: e.target.value })}
-      />
-      <Select value={filters.sortBy} onChange={(e) => onChange({ ...filters, sortBy: e.target.value as ResourceFilters["sortBy"] })}>
-        <option value="latest">{t("resourceFilters.latest")}</option>
-        <option value="downloads">{t("resourceFilters.mostDownloaded")}</option>
-      </Select>
-    </div>
+    <section className="space-y-3 border-t border-border pt-4 first:border-t-0 first:pt-0">
+      <h2 className="text-lg text-foreground">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+export function ResourceFiltersBar({ facets }: Props) {
+  const { t } = usePreferences();
+  const { filters, setGrade, toggleSubject, toggleTag, toggleOrigin, clearAll } = useMaterialFilters();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  return (
+    <aside className="rounded-[30px] border border-border bg-surface p-5 shadow-[0_4px_24px_var(--shadow)] lg:sticky lg:top-28">
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm uppercase tracking-[0.18em] text-text-soft">{t("search.filtersOverline")}</p>
+          <h2 className="mt-2 text-3xl text-foreground">{t("search.findMaterials")}</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="lg:hidden"
+            onClick={() => setMobileOpen((prev) => !prev)}
+          >
+            {mobileOpen ? t("search.hideFilters") : t("search.showFilters")}
+          </Button>
+          <button
+            type="button"
+            onClick={clearAll}
+            className="text-sm font-medium text-brand hover:text-brand-soft"
+          >
+            {t("search.clearAll")}
+          </button>
+        </div>
+      </div>
+
+      <div className={`${mobileOpen ? "space-y-4" : "hidden"} lg:block lg:space-y-4`}>
+        <FilterSection title={t("search.grade")}>
+          <div className="space-y-2">
+            <label className="flex items-center gap-3 text-sm text-text-muted">
+              <input
+                type="radio"
+                name="grade"
+                checked={filters.grade === null}
+                onChange={() => setGrade(null)}
+                className="h-4 w-4 accent-[var(--brand)]"
+              />
+              {t("search.allGrades")}
+            </label>
+            {facets.grades.map((grade) => (
+              <label key={grade.value} className="flex items-center gap-3 text-sm text-text-muted">
+                <input
+                  type="radio"
+                  name="grade"
+                  checked={filters.grade === grade.value}
+                  onChange={() => setGrade(grade.value as MaterialGrade)}
+                  className="h-4 w-4 accent-[var(--brand)]"
+                />
+                {getMaterialGradeLabel(grade.value as MaterialGrade, t)}
+              </label>
+            ))}
+          </div>
+        </FilterSection>
+
+        <FilterSection title={t("search.subjects")}>
+          <div className="space-y-2">
+            {facets.subjects.map((subject) => (
+              <label key={subject.value} className="flex items-center justify-between gap-3 text-sm text-text-muted">
+                <span className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={filters.subjects.includes(subject.value)}
+                    onChange={() => toggleSubject(subject.value)}
+                    className="h-4 w-4 rounded accent-[var(--brand)]"
+                  />
+                  {subject.label}
+                </span>
+                <span className="text-xs text-text-soft">{subject.count}</span>
+              </label>
+            ))}
+          </div>
+        </FilterSection>
+
+        <FilterSection title={t("search.tags")}>
+          <div className="space-y-2">
+            {facets.tags.map((tag) => (
+              <label key={tag.value} className="flex items-center justify-between gap-3 text-sm text-text-muted">
+                <span className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={filters.tags.includes(tag.value as MaterialTag)}
+                    onChange={() => toggleTag(tag.value as MaterialTag)}
+                    className="h-4 w-4 rounded accent-[var(--brand)]"
+                  />
+                  {getMaterialTagLabel(tag.value as MaterialTag, t)}
+                </span>
+                <span className="text-xs text-text-soft">{tag.count}</span>
+              </label>
+            ))}
+          </div>
+        </FilterSection>
+
+        <FilterSection title={t("search.origin")}>
+          <div className="space-y-2">
+            {facets.origins.map((origin) => (
+              <label key={origin.value} className="flex items-center justify-between gap-3 text-sm text-text-muted">
+                <span className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={filters.origins.includes(origin.value)}
+                    onChange={() => toggleOrigin(origin.value)}
+                    className="h-4 w-4 rounded accent-[var(--brand)]"
+                  />
+                  {origin.label}
+                </span>
+                <span className="text-xs text-text-soft">{origin.count}</span>
+              </label>
+            ))}
+          </div>
+        </FilterSection>
+      </div>
+    </aside>
   );
 }

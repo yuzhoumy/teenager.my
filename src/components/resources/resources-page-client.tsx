@@ -1,114 +1,142 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { seedResources } from "@/lib/seed-resources";
+import { groupMaterialsBySubject, getMaterialGradeLabel, getMaterialTagLabel } from "@/lib/materials";
 import { ResourceCard } from "@/components/resources/resource-card";
-import {
-  ResourceFiltersBar,
-  type ResourceFilters,
-} from "@/components/resources/resource-filters";
+import { ResourceFiltersBar } from "@/components/resources/resource-filters";
 import { UploadResourceModal } from "@/components/resources/upload-resource-modal";
-import { Button } from "@/components/ui/button";
+import { useMaterialsQuery } from "@/components/resources/use-material-filters";
 import { usePreferences } from "@/components/preferences/preferences-provider";
 
-const initialFilters: ResourceFilters = {
-  search: "",
-  subject: "",
-  formLevel: "",
-  category: "",
-  year: "",
-  sortBy: "latest",
-};
+function ActiveFiltersSummary({ filters }: { filters: ReturnType<typeof useMaterialsQuery>["filters"] }) {
+  const { t } = usePreferences();
+  const tokens = [
+    filters.grade ? getMaterialGradeLabel(filters.grade, t) : null,
+    ...filters.subjects,
+    ...filters.tags.map((tag) => getMaterialTagLabel(tag, t)),
+    ...filters.origins,
+  ].filter(Boolean);
 
-const pageSize = 6;
+  return (
+    <div className="flex flex-wrap gap-2">
+      {tokens.length > 0 ? (
+        tokens.map((token) => (
+          <span
+            key={token}
+            className="rounded-full border border-border-strong bg-surface-muted px-3 py-1 text-xs uppercase tracking-[0.12em] text-text-muted"
+          >
+            {token}
+          </span>
+        ))
+      ) : (
+        <span className="text-sm text-text-muted">{t("search.showingAllMaterials")}</span>
+      )}
+    </div>
+  );
+}
 
 export function ResourcesPageClient() {
   const { t } = usePreferences();
-  const [filters, setFilters] = useState<ResourceFilters>(initialFilters);
-  const [page, setPage] = useState(1);
+  const { filters, facets, materials, loading, error } = useMaterialsQuery();
 
-  const filtered = useMemo(() => {
-    const list = seedResources.filter((resource) => {
-      const matchesSearch = !filters.search
-        ? true
-        : resource.title.toLowerCase().includes(filters.search.toLowerCase());
-      const matchesSubject = !filters.subject
-        ? true
-        : resource.subject.toLowerCase().includes(filters.subject.toLowerCase());
-      const matchesForm = !filters.formLevel
-        ? true
-        : String(resource.form_level) === filters.formLevel;
-      const matchesCategory = !filters.category
-        ? true
-        : resource.category === filters.category;
-      const matchesYear = !filters.year
-        ? true
-        : String(resource.year).includes(filters.year);
+  if (error && !facets) {
+    return (
+      <section className="space-y-6">
+        <div className="rounded-[30px] border border-border bg-surface p-8 shadow-[0_4px_24px_var(--shadow)]">
+          <p className="text-sm uppercase tracking-[0.18em] text-text-soft">{t("search.overline")}</p>
+          <h1 className="mt-2 text-4xl text-foreground sm:text-5xl">{t("search.title")}</h1>
+          <div className="mt-4 rounded-2xl border border-[#e7c3b8] bg-[#fff4f0] p-4">
+            <h2 className="text-2xl text-foreground">{t("search.setupNeeded")}</h2>
+            <p className="mt-2 text-sm text-[#b53333]">{error}</p>
+            <p className="mt-3 text-sm text-text-muted">{t("search.setupNeededDescription")}</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
-      return (
-        matchesSearch &&
-        matchesSubject &&
-        matchesForm &&
-        matchesCategory &&
-        matchesYear
-      );
-    });
+  if (!facets) {
+    return (
+      <section className="space-y-6">
+        <div className="rounded-[30px] border border-border bg-surface p-8 shadow-[0_4px_24px_var(--shadow)]">
+          <p className="text-sm uppercase tracking-[0.18em] text-text-soft">{t("search.overline")}</p>
+          <h1 className="mt-2 text-4xl text-foreground sm:text-5xl">{t("search.title")}</h1>
+          <p className="mt-3 text-base text-text-muted">{t("search.loadingFacets")}</p>
+        </div>
+      </section>
+    );
+  }
 
-    list.sort((a, b) => {
-      if (filters.sortBy === "downloads") {
-        return b.downloads - a.downloads;
-      }
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
-    return list;
-  }, [filters]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const pagedResources = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const groupedMaterials = groupMaterialsBySubject(materials);
+  const shouldGroupBySubject = filters.subjects.length === 0;
 
   return (
     <section className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Library</p>
-          <h1 className="mt-2 text-4xl text-foreground sm:text-5xl">{t("resources.title")}</h1>
-          <p className="mt-3 max-w-2xl text-base text-text-muted">{t("resources.subtitle")}</p>
+          <p className="text-sm uppercase tracking-[0.18em] text-text-soft">{t("search.overline")}</p>
+          <h1 className="mt-2 text-4xl text-foreground sm:text-5xl">{t("search.title")}</h1>
+          <p className="mt-3 max-w-3xl text-base text-text-muted">{t("search.description")}</p>
         </div>
         <UploadResourceModal />
       </div>
-      <ResourceFiltersBar
-        filters={filters}
-        onChange={(next) => {
-          setFilters(next);
-          setPage(1);
-        }}
-      />
-      <div className="grid gap-4 md:grid-cols-2">
-        {pagedResources.map((resource) => (
-          <ResourceCard key={resource.id} resource={resource} />
-        ))}
-      </div>
-      <div className="flex items-center justify-between gap-4">
-        <p className="text-sm text-text-muted">
-          {t("resources.pagination.pageOf", { page, totalPages })}
-        </p>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-            disabled={page === 1}
-          >
-            {t("resources.pagination.previous")}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-            disabled={page === totalPages}
-          >
-            {t("resources.pagination.next")}
-          </Button>
+
+      <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-6">
+        <ResourceFiltersBar facets={facets} />
+
+        <div className="space-y-6">
+          <div className="rounded-[30px] border border-border bg-surface p-5 shadow-[0_4px_24px_var(--shadow)]">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm uppercase tracking-[0.18em] text-text-soft">{t("search.results")}</p>
+                <h2 className="mt-2 text-3xl text-foreground">
+                  {loading ? t("search.loadingMaterials") : t("search.materialCount", { count: materials.length })}
+                </h2>
+              </div>
+              <p className="text-sm text-text-muted">{t("search.sortedByYear")}</p>
+            </div>
+            <div className="mt-4">
+              <ActiveFiltersSummary filters={filters} />
+            </div>
+          </div>
+
+          {error ? (
+            <div className="rounded-[30px] border border-border bg-surface p-8 text-center shadow-[0_4px_24px_var(--shadow)]">
+              <h2 className="text-3xl text-foreground">{t("search.errorTitle")}</h2>
+              <p className="mt-3 text-sm text-[#b53333]">{error}</p>
+            </div>
+          ) : loading ? (
+            <div className="rounded-[30px] border border-border bg-surface p-8 text-center shadow-[0_4px_24px_var(--shadow)]">
+              <h2 className="text-3xl text-foreground">{t("search.fetchingMaterials")}</h2>
+              <p className="mt-3 text-sm text-text-muted">{t("search.fetchingMaterialsDescription")}</p>
+            </div>
+          ) : materials.length === 0 ? (
+            <div className="rounded-[30px] border border-border bg-surface p-8 text-center shadow-[0_4px_24px_var(--shadow)]">
+              <h2 className="text-3xl text-foreground">{t("search.emptyTitle")}</h2>
+              <p className="mt-3 text-sm text-text-muted">{t("search.emptyDescription")}</p>
+            </div>
+          ) : shouldGroupBySubject ? (
+            <div className="space-y-8">
+              {groupedMaterials.map(([subject, subjectMaterials]) => (
+                <section key={subject} className="space-y-4">
+                  <div>
+                    <p className="text-sm uppercase tracking-[0.18em] text-text-soft">{t("search.subject")}</p>
+                    <h2 className="mt-2 text-3xl text-foreground">{subject}</h2>
+                  </div>
+                  <div className="grid gap-4 xl:grid-cols-2">
+                    {subjectMaterials.map((material) => (
+                      <ResourceCard key={material.id} material={material} />
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          ) : (
+            <div className="grid gap-4 xl:grid-cols-2">
+              {materials.map((material) => (
+                <ResourceCard key={material.id} material={material} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </section>

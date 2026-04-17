@@ -1,4 +1,5 @@
-export type ResourceCategory = "trial_paper" | "past_year_paper" | "notes";
+export type MaterialGrade = "f1" | "f2" | "f3" | "f4" | "f5";
+export type MaterialTag = "exercise" | "notes" | "past-year" | "trial-paper";
 
 export type Database = {
   public: {
@@ -26,47 +27,63 @@ export type Database = {
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
       };
-      resources: {
+      materials: {
         Row: {
           id: string;
           title: string;
-          subject: string;
-          category: ResourceCategory;
-          form_level: number;
-          year: number;
           file_url: string;
+          grade: MaterialGrade;
+          subject: string;
+          category_tags: MaterialTag[];
+          year: number;
+          origin: string;
           uploaded_by: string | null;
           created_at: string;
           downloads: number;
+          metadata: {
+            grade?: MaterialGrade;
+            subject?: string;
+            category_tags?: MaterialTag[];
+            year?: number;
+            origin?: string;
+          };
         };
         Insert: {
           id?: string;
           title: string;
-          subject: string;
-          category: ResourceCategory;
-          form_level: number;
-          year: number;
           file_url: string;
+          grade: MaterialGrade;
+          subject: string;
+          category_tags: MaterialTag[];
+          year: number;
+          origin: string;
           uploaded_by?: string | null;
           created_at?: string;
           downloads?: number;
+          metadata?: {
+            grade?: MaterialGrade;
+            subject?: string;
+            category_tags?: MaterialTag[];
+            year?: number;
+            origin?: string;
+          };
         };
-        Update: Partial<Database["public"]["Tables"]["resources"]["Insert"]>;
+        Update: Partial<Database["public"]["Tables"]["materials"]["Insert"]>;
       };
-      resource_bookmarks: {
+      material_bookmarks: {
         Row: {
           id: string;
           user_id: string;
-          resource_id: string;
+          material_id: string;
           created_at: string;
         };
         Insert: {
           id?: string;
           user_id: string;
-          resource_id: string;
+          material_id: string;
           created_at?: string;
         };
-        Update: Partial<Database["public"]["Tables"]["resource_bookmarks"]["Insert"]>;
+        Update: Partial<Database["public"]["Tables"]["material_bookmarks"]["Insert"]>;
       };
     };
   };

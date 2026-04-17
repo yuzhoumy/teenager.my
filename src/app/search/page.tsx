@@ -13,7 +13,7 @@ function SearchPageFallback() {
   );
 }
 
-export default function ResourcesPage() {
+export default function SearchPage() {
   return (
     <Suspense fallback={<SearchPageFallback />}>
       <ResourcesPageClient />

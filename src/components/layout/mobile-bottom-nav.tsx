@@ -39,7 +39,7 @@ export function MobileBottomNav() {
             <Home className="h-4 w-4" />
             {t("nav.home")}
           </Link>
-          <Link href="/resources" className="flex flex-col items-center gap-1 rounded-2xl py-2 text-xs text-text-muted">
+          <Link href="/search" className="flex flex-col items-center gap-1 rounded-2xl py-2 text-xs text-text-muted">
             <BookOpen className="h-4 w-4" />
             {t("nav.resources")}
           </Link>

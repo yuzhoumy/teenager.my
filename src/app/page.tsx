@@ -63,7 +63,7 @@ export default function Home() {
               <Link href="/register">{t("home.getStarted")}</Link>
             </Button>
             <Button asChild variant="outline" size="lg">
-              <Link href="/resources">
+              <Link href="/search">
                 {t("home.browseResources")} <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
@@ -138,7 +138,7 @@ export default function Home() {
             <h2 className="mt-2 text-4xl text-foreground sm:text-5xl">A homepage shaped like chapters.</h2>
           </div>
           <Button asChild variant="secondary">
-            <Link href="/resources">Browse the library</Link>
+            <Link href="/search">Browse the library</Link>
           </Button>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

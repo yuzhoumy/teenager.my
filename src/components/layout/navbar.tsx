@@ -58,7 +58,7 @@ export function Navbar() {
           <Link href="/" className="text-sm text-text-muted hover:text-foreground">
             {t("nav.home")}
           </Link>
-          <Link href="/resources" className="text-sm text-text-muted hover:text-foreground">
+          <Link href="/search" className="text-sm text-text-muted hover:text-foreground">
             {t("nav.resources")}
           </Link>
 

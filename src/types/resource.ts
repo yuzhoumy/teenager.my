@@ -1,14 +1,22 @@
-import type { ResourceCategory } from "@/types/database";
+import type { MaterialGrade, MaterialTag } from "@/types/database";
 
-export type StudyResource = {
+export type StudyMaterial = {
   id: string;
   title: string;
-  subject: string;
-  category: ResourceCategory;
-  form_level: number;
-  year: number;
   file_url: string;
+  grade: MaterialGrade;
+  subject: string;
+  category_tags: MaterialTag[];
+  year: number;
+  origin: string;
   uploaded_by: string | null;
   created_at: string;
   downloads: number;
+  metadata: {
+    grade?: MaterialGrade;
+    subject?: string;
+    category_tags?: MaterialTag[];
+    year?: number;
+    origin?: string;
+  };
 };
