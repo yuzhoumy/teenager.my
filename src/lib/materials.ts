@@ -27,8 +27,8 @@ export type MaterialFacets = {
 
 type MaterialFacetRow = Pick<StudyMaterial, "grade" | "subject" | "category_tags" | "origin">;
 
-const materialGrades: MaterialGrade[] = ["f1", "f2", "f3", "f4", "f5"];
-const materialTags: MaterialTag[] = ["exercise", "notes", "past-year", "trial-paper"];
+export const materialGrades: MaterialGrade[] = ["f1", "f2", "f3", "f4", "f5"];
+export const materialTags: MaterialTag[] = ["exercise", "notes", "past-year", "trial-paper"];
 
 export const materialGradeLabels: Record<MaterialGrade, string> = {
   f1: "Form 1",

@@ -70,6 +70,49 @@ export type Database = {
         };
         Update: Partial<Database["public"]["Tables"]["materials"]["Insert"]>;
       };
+      pending_materials: {
+        Row: {
+          id: string;
+          title: string;
+          file_url: string;
+          grade: MaterialGrade;
+          subject: string;
+          category_tags: MaterialTag[];
+          year: number;
+          origin: string;
+          uploaded_by: string | null;
+          created_at: string;
+          downloads: number;
+          metadata: {
+            grade?: MaterialGrade;
+            subject?: string;
+            category_tags?: MaterialTag[];
+            year?: number;
+            origin?: string;
+          };
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          file_url: string;
+          grade: MaterialGrade;
+          subject: string;
+          category_tags: MaterialTag[];
+          year: number;
+          origin: string;
+          uploaded_by?: string | null;
+          created_at?: string;
+          downloads?: number;
+          metadata?: {
+            grade?: MaterialGrade;
+            subject?: string;
+            category_tags?: MaterialTag[];
+            year?: number;
+            origin?: string;
+          };
+        };
+        Update: Partial<Database["public"]["Tables"]["pending_materials"]["Insert"]>;
+      };
       material_bookmarks: {
         Row: {
           id: string;
