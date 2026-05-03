@@ -52,6 +52,8 @@ export const materialTagLabels: Record<MaterialTag, string> = {
   "trial-paper": "Trial Paper",
 };
 
+const samplePdfUrl = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
+
 const fallbackMaterials: StudyMaterial[] = [
   {
     id: "fallback-1",
@@ -59,7 +61,7 @@ const fallbackMaterials: StudyMaterial[] = [
     title: "SPM Trial Add Maths 2024 - Johor",
     core_type: "exercise",
     content_markdown:
-      "# Overview\n- State trial paper prepared for late-year revision.\n- Focus on calculus, differentiation, and graph interpretation.\n\n## Attachment\n[Open the paper](#)",
+      `# Overview\n- State trial paper prepared for late-year revision.\n- Focus on calculus, differentiation, and graph interpretation.\n\n## Attachment\n[Open the paper](${samplePdfUrl})`,
     grade: "f5",
     subject: "Additional Mathematics",
     category_tags: ["trial-paper"],
@@ -75,7 +77,7 @@ const fallbackMaterials: StudyMaterial[] = [
     title: "MRSM Physics Past Year 2023",
     core_type: "exercise",
     content_markdown:
-      "# Overview\n- Past-year set with structured and objective sections.\n- Useful for time-based drilling before finals.\n\n## Attachment\n[Open the paper](#)",
+      `# Overview\n- Past-year set with structured and objective sections.\n- Useful for time-based drilling before finals.\n\n## Attachment\n[Open the paper](${samplePdfUrl})`,
     grade: "f5",
     subject: "Physics",
     category_tags: ["past-year"],
@@ -91,7 +93,7 @@ const fallbackMaterials: StudyMaterial[] = [
     title: "Form 4 Biology Exercise Set - Respiration",
     core_type: "exercise",
     content_markdown:
-      "# Overview\n- Topic drill on aerobic and anaerobic respiration.\n- Includes short-answer prompts and structured explanation questions.\n\n## Attachment\n[Open the worksheet](#)",
+      `# Overview\n- Topic drill on aerobic and anaerobic respiration.\n- Includes short-answer prompts and structured explanation questions.\n\n## Attachment\n[Open the worksheet](${samplePdfUrl})`,
     grade: "f4",
     subject: "Biology",
     category_tags: [],
@@ -107,7 +109,7 @@ const fallbackMaterials: StudyMaterial[] = [
     title: "SPM Sejarah Past Year 2022",
     core_type: "exercise",
     content_markdown:
-      "# Overview\n- Official-style past-year paper for SPM preparation.\n- Best paired with answer discussion after each timed session.\n\n## Attachment\n[Open the paper](#)",
+      `# Overview\n- Official-style past-year paper for SPM preparation.\n- Best paired with answer discussion after each timed session.\n\n## Attachment\n[Open the paper](${samplePdfUrl})`,
     grade: "f5",
     subject: "Sejarah",
     category_tags: ["past-year"],
@@ -123,7 +125,7 @@ const fallbackMaterials: StudyMaterial[] = [
     title: "Form 5 English Trial Paper - Negeri Sembilan",
     core_type: "exercise",
     content_markdown:
-      "# Overview\n- Trial paper with reading, writing, and grammar sections.\n- Good for simulating a full-paper attempt in one sitting.\n\n## Attachment\n[Open the paper](#)",
+      `# Overview\n- Trial paper with reading, writing, and grammar sections.\n- Good for simulating a full-paper attempt in one sitting.\n\n## Attachment\n[Open the paper](${samplePdfUrl})`,
     grade: "f5",
     subject: "English",
     category_tags: ["trial-paper"],
@@ -139,7 +141,7 @@ const fallbackMaterials: StudyMaterial[] = [
     title: "Form 3 Mathematics Notes - Algebra",
     core_type: "note",
     content_markdown:
-      "# Overview\n- Compact revision notes for algebraic expressions and factorisation.\n- Written as a quick refresher before attempting practice questions.\n\n## Attachment\n[Open the attachment](#)",
+      `# Overview\n- Compact revision notes for algebraic expressions and factorisation.\n- Written as a quick refresher before attempting practice questions.\n\n## Attachment\n[Open the attachment](${samplePdfUrl})`,
     grade: "f3",
     subject: "Mathematics",
     category_tags: [],

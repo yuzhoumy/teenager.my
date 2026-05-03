@@ -1,4 +1,10 @@
-import type { MaterialCoreType, MaterialGrade, MaterialTag } from "@/types/database";
+import type {
+  AnnotationRect,
+  KnowledgePatchKind,
+  MaterialCoreType,
+  MaterialGrade,
+  MaterialTag,
+} from "@/types/database";
 
 export type StudyMaterial = {
   id: string;
@@ -14,4 +20,59 @@ export type StudyMaterial = {
   author_name: string;
   uploaded_by: string | null;
   created_at: string;
+};
+
+export type ResourcePdfLink = {
+  href: string;
+  label: string;
+};
+
+export type UserFork = {
+  id: string;
+  user_id: string;
+  material_id: string;
+  source_url: string;
+  created_at: string;
+};
+
+export type ForkAnnotation = {
+  id: string;
+  fork_id: string;
+  page_number: number;
+  bounding_rect: AnnotationRect;
+  comment: string;
+  quote: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type ExerciseSolution = {
+  id: string;
+  material_id: string;
+  user_id: string | null;
+  body: string;
+  image_url: string | null;
+  created_at: string;
+  author_name?: string;
+  vote_count?: number;
+  has_voted?: boolean;
+};
+
+export type KnowledgePatch = {
+  id: string;
+  material_id: string;
+  user_id: string | null;
+  kind: KnowledgePatchKind;
+  body: string;
+  created_at: string;
+  author_name?: string;
+};
+
+export type DiscussionPost = {
+  id: string;
+  material_id: string;
+  user_id: string | null;
+  body: string;
+  created_at: string;
+  author_name?: string;
 };

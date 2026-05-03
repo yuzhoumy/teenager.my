@@ -182,6 +182,155 @@ create unique index if not exists idx_pending_materials_slug_unique on public.pe
 create index if not exists idx_materials_core_type on public.materials (core_type);
 create index if not exists idx_pending_materials_core_type on public.pending_materials (core_type);
 
+create table if not exists public.user_forks (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  material_id uuid not null references public.materials(id) on delete cascade,
+  source_url text not null,
+  created_at timestamptz not null default now(),
+  unique (user_id, material_id, source_url)
+);
+
+alter table public.user_forks enable row level security;
+
+drop policy if exists "Allow users to select own forks" on public.user_forks;
+create policy "Allow users to select own forks" on public.user_forks
+  for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "Allow users to insert own forks" on public.user_forks;
+create policy "Allow users to insert own forks" on public.user_forks
+  for insert
+  with check (auth.uid() = user_id);
+
+create table if not exists public.annotations (
+  id uuid primary key default gen_random_uuid(),
+  fork_id uuid not null references public.user_forks(id) on delete cascade,
+  page_number integer not null check (page_number > 0),
+  bounding_rect jsonb not null,
+  comment text not null,
+  quote text,
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.annotations enable row level security;
+
+drop policy if exists "Allow fork owners to view annotations" on public.annotations;
+create policy "Allow fork owners to view annotations" on public.annotations
+  for select
+  using (
+    exists (
+      select 1
+      from public.user_forks
+      where public.user_forks.id = annotations.fork_id
+        and public.user_forks.user_id = auth.uid()
+    )
+  );
+
+drop policy if exists "Allow fork owners to insert annotations" on public.annotations;
+create policy "Allow fork owners to insert annotations" on public.annotations
+  for insert
+  with check (
+    auth.uid() = created_by
+    and exists (
+      select 1
+      from public.user_forks
+      where public.user_forks.id = annotations.fork_id
+        and public.user_forks.user_id = auth.uid()
+    )
+  );
+
+create table if not exists public.exercise_solutions (
+  id uuid primary key default gen_random_uuid(),
+  material_id uuid not null references public.materials(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete set null,
+  body text not null,
+  image_url text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.exercise_solutions enable row level security;
+
+drop policy if exists "Allow public selects on exercise solutions" on public.exercise_solutions;
+create policy "Allow public selects on exercise solutions" on public.exercise_solutions
+  for select
+  using (true);
+
+drop policy if exists "Allow authenticated inserts on exercise solutions" on public.exercise_solutions;
+create policy "Allow authenticated inserts on exercise solutions" on public.exercise_solutions
+  for insert
+  with check (auth.role() = 'authenticated' and auth.uid() = user_id);
+
+create table if not exists public.exercise_solution_votes (
+  id uuid primary key default gen_random_uuid(),
+  solution_id uuid not null references public.exercise_solutions(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (solution_id, user_id)
+);
+
+alter table public.exercise_solution_votes enable row level security;
+
+drop policy if exists "Allow public selects on solution votes" on public.exercise_solution_votes;
+create policy "Allow public selects on solution votes" on public.exercise_solution_votes
+  for select
+  using (true);
+
+drop policy if exists "Allow users to upvote once" on public.exercise_solution_votes;
+create policy "Allow users to upvote once" on public.exercise_solution_votes
+  for insert
+  with check (auth.uid() = user_id);
+
+create table if not exists public.knowledge_patches (
+  id uuid primary key default gen_random_uuid(),
+  material_id uuid not null references public.materials(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete set null,
+  kind text not null check (kind in ('correction', 'mnemonic')),
+  body text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.knowledge_patches enable row level security;
+
+drop policy if exists "Allow public selects on knowledge patches" on public.knowledge_patches;
+create policy "Allow public selects on knowledge patches" on public.knowledge_patches
+  for select
+  using (true);
+
+drop policy if exists "Allow authenticated inserts on knowledge patches" on public.knowledge_patches;
+create policy "Allow authenticated inserts on knowledge patches" on public.knowledge_patches
+  for insert
+  with check (auth.role() = 'authenticated' and auth.uid() = user_id);
+
+create table if not exists public.material_discussions (
+  id uuid primary key default gen_random_uuid(),
+  material_id uuid not null references public.materials(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete set null,
+  body text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.material_discussions enable row level security;
+
+drop policy if exists "Allow public selects on material discussions" on public.material_discussions;
+create policy "Allow public selects on material discussions" on public.material_discussions
+  for select
+  using (true);
+
+drop policy if exists "Allow authenticated inserts on material discussions" on public.material_discussions;
+create policy "Allow authenticated inserts on material discussions" on public.material_discussions
+  for insert
+  with check (auth.role() = 'authenticated' and auth.uid() = user_id);
+
+create index if not exists idx_user_forks_material_id on public.user_forks (material_id);
+create index if not exists idx_user_forks_user_id on public.user_forks (user_id);
+create index if not exists idx_annotations_fork_id on public.annotations (fork_id);
+create index if not exists idx_exercise_solutions_material_id on public.exercise_solutions (material_id);
+create index if not exists idx_solution_votes_solution_id on public.exercise_solution_votes (solution_id);
+create index if not exists idx_knowledge_patches_material_id on public.knowledge_patches (material_id);
+create index if not exists idx_material_discussions_material_id on public.material_discussions (material_id);
+
 alter table public.materials drop column if exists file_url;
 alter table public.materials drop column if exists downloads;
 alter table public.materials drop column if exists metadata;
