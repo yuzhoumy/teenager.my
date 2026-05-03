@@ -1,5 +1,6 @@
 export type MaterialGrade = "f1" | "f2" | "f3" | "f4" | "f5";
-export type MaterialTag = "exercise" | "notes" | "past-year" | "trial-paper";
+export type MaterialCoreType = "exercise" | "note";
+export type MaterialTag = "past-year" | "trial-paper";
 
 export type Database = {
   public: {
@@ -30,86 +31,66 @@ export type Database = {
       materials: {
         Row: {
           id: string;
+          slug: string;
           title: string;
-          file_url: string;
+          core_type: MaterialCoreType;
+          content_markdown: string;
           grade: MaterialGrade;
           subject: string;
           category_tags: MaterialTag[];
           year: number;
           origin: string;
+          author_name: string;
           uploaded_by: string | null;
           created_at: string;
-          downloads: number;
-          metadata: {
-            grade?: MaterialGrade;
-            subject?: string;
-            category_tags?: MaterialTag[];
-            year?: number;
-            origin?: string;
-          };
         };
         Insert: {
           id?: string;
+          slug: string;
           title: string;
-          file_url: string;
+          core_type: MaterialCoreType;
+          content_markdown: string;
           grade: MaterialGrade;
           subject: string;
           category_tags: MaterialTag[];
           year: number;
           origin: string;
+          author_name: string;
           uploaded_by?: string | null;
           created_at?: string;
-          downloads?: number;
-          metadata?: {
-            grade?: MaterialGrade;
-            subject?: string;
-            category_tags?: MaterialTag[];
-            year?: number;
-            origin?: string;
-          };
         };
         Update: Partial<Database["public"]["Tables"]["materials"]["Insert"]>;
       };
       pending_materials: {
         Row: {
           id: string;
+          slug: string;
           title: string;
-          file_url: string;
+          core_type: MaterialCoreType;
+          content_markdown: string;
           grade: MaterialGrade;
           subject: string;
           category_tags: MaterialTag[];
           year: number;
           origin: string;
+          author_name: string;
           uploaded_by: string | null;
           created_at: string;
-          downloads: number;
-          metadata: {
-            grade?: MaterialGrade;
-            subject?: string;
-            category_tags?: MaterialTag[];
-            year?: number;
-            origin?: string;
-          };
         };
         Insert: {
           id?: string;
+          slug: string;
           title: string;
-          file_url: string;
+          core_type: MaterialCoreType;
+          content_markdown: string;
           grade: MaterialGrade;
           subject: string;
           category_tags: MaterialTag[];
           year: number;
           origin: string;
+          author_name: string;
           uploaded_by?: string | null;
           created_at?: string;
-          downloads?: number;
-          metadata?: {
-            grade?: MaterialGrade;
-            subject?: string;
-            category_tags?: MaterialTag[];
-            year?: number;
-            origin?: string;
-          };
         };
         Update: Partial<Database["public"]["Tables"]["pending_materials"]["Insert"]>;
       };

@@ -13,18 +13,21 @@ create table if not exists public.profiles (
 
 create table if not exists public.materials (
   id uuid primary key default gen_random_uuid(),
+  slug text not null unique,
   title text not null,
-  file_url text not null,
+  core_type text not null check (core_type in ('exercise', 'note')),
+  content_markdown text not null,
   grade text not null check (grade in ('f1', 'f2', 'f3', 'f4', 'f5')),
   subject text not null,
   category_tags text[] not null default '{}',
   year integer not null check (year between 2000 and 2100),
   origin text not null,
+  author_name text not null,
   uploaded_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
-  downloads integer not null default 0,
-  metadata jsonb not null default '{}'::jsonb,
-  constraint materials_category_tags_not_empty check (cardinality(category_tags) > 0)
+  constraint materials_category_tags_allowed check (
+    category_tags <@ array['past-year', 'trial-paper']::text[]
+  )
 );
 
 alter table public.materials enable row level security;
@@ -61,18 +64,21 @@ create policy "Allow users to delete own material bookmarks" on public.material_
 
 create table if not exists public.pending_materials (
   id uuid primary key default gen_random_uuid(),
+  slug text not null unique,
   title text not null,
-  file_url text not null,
+  core_type text not null check (core_type in ('exercise', 'note')),
+  content_markdown text not null,
   grade text not null check (grade in ('f1', 'f2', 'f3', 'f4', 'f5')),
   subject text not null,
   category_tags text[] not null default '{}',
   year integer not null check (year between 2000 and 2100),
   origin text not null,
+  author_name text not null,
   uploaded_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
-  downloads integer not null default 0,
-  metadata jsonb not null default '{}'::jsonb,
-  constraint pending_materials_category_tags_not_empty check (cardinality(category_tags) > 0)
+  constraint pending_materials_category_tags_allowed check (
+    category_tags <@ array['past-year', 'trial-paper']::text[]
+  )
 );
 
 alter table public.pending_materials enable row level security;
@@ -88,12 +94,13 @@ create policy "Allow authenticated selects on pending_materials" on public.pendi
   using (auth.role() = 'authenticated');
 
 create index if not exists idx_materials_grade on public.materials (grade);
+create index if not exists idx_materials_core_type on public.materials (core_type);
 create index if not exists idx_materials_subject on public.materials (subject);
 create index if not exists idx_materials_origin on public.materials (origin);
 create index if not exists idx_materials_year on public.materials (year desc);
 create index if not exists idx_materials_created_at on public.materials (created_at desc);
+create index if not exists idx_materials_slug on public.materials (slug);
 create index if not exists idx_materials_category_tags on public.materials using gin (category_tags);
-create index if not exists idx_materials_metadata on public.materials using gin (metadata);
 
 DO $$
 BEGIN

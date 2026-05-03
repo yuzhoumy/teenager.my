@@ -1,6 +1,6 @@
 "use client";
 
-import { Download } from "lucide-react";
+import { Eye } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { getMaterialHref } from "@/lib/materials";
 import { isValidSchool, schoolOptions } from "@/lib/schools";
 import type { Database } from "@/types/database";
 import type { StudyMaterial } from "@/types/resource";
@@ -364,10 +365,10 @@ export default function ProfilePage() {
                   </p>
                 </div>
                 <Button asChild size="sm">
-                  <a href={resource.file_url}>
-                    <Download className="h-4 w-4" />
-                    Download
-                  </a>
+                  <Link href={getMaterialHref(resource)}>
+                    <Eye className="h-4 w-4" />
+                    View
+                  </Link>
                 </Button>
               </li>
             ))}

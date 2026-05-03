@@ -1,8 +1,13 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
-import type { MaterialGrade, MaterialTag } from "@/types/database";
-import { getMaterialGradeLabel, getMaterialTagLabel, type MaterialFacets } from "@/lib/materials";
+import { useState, type FormEvent } from "react";
+import type { MaterialCoreType, MaterialGrade, MaterialTag } from "@/types/database";
+import {
+  getMaterialCoreTypeLabel,
+  getMaterialGradeLabel,
+  getMaterialTagLabel,
+  type MaterialFacets,
+} from "@/lib/materials";
 import { useMaterialFilters } from "@/components/resources/use-material-filters";
 import { Button } from "@/components/ui/button";
 
@@ -26,17 +31,22 @@ function FilterSection({
 }
 
 export function ResourceFiltersBar({ facets }: Props) {
-  const { filters, setGrade, toggleSubject, toggleTag, toggleOrigin, setSearchText, clearAll } = useMaterialFilters();
-  const [searchInput, setSearchInput] = useState(filters.query);
+  const {
+    filters,
+    setGrade,
+    toggleCoreType,
+    toggleSubject,
+    toggleTag,
+    toggleOrigin,
+    setSearchText,
+    clearAll,
+  } = useMaterialFilters();
   const [mobileOpen, setMobileOpen] = useState(true);
-
-  useEffect(() => {
-    setSearchInput(filters.query);
-  }, [filters.query]);
 
   function handleSearchSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSearchText(searchInput);
+    const formData = new FormData(event.currentTarget);
+    setSearchText(`${formData.get("query") ?? ""}`.trim());
   }
 
   return (
@@ -44,7 +54,7 @@ export function ResourceFiltersBar({ facets }: Props) {
       <div className="mb-5 flex items-center justify-between gap-3">
         <div>
           <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Filters</p>
-          <h2 className="mt-2 text-3xl text-foreground">Find materials</h2>
+          <h2 className="mt-2 text-3xl text-foreground">Find resources</h2>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -70,15 +80,16 @@ export function ResourceFiltersBar({ facets }: Props) {
         <FilterSection title="Search">
           <form onSubmit={handleSearchSubmit} className="space-y-2">
             <label htmlFor="material-search" className="sr-only">
-              Search materials
+              Search resources
             </label>
             <div className="flex flex-wrap items-center gap-3">
               <input
+                key={filters.query}
                 id="material-search"
+                name="query"
                 type="search"
-                value={searchInput}
-                onChange={(event) => setSearchInput(event.target.value)}
-                placeholder="Search titles or type tags like Form 5, Trial Paper"
+                defaultValue={filters.query}
+                placeholder="Search titles or type filters like Form 5, Exercise, Trial Paper"
                 className="min-w-0 flex-1 rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
               />
               <Button type="submit" variant="secondary" size="sm" className="whitespace-nowrap">
@@ -110,6 +121,25 @@ export function ResourceFiltersBar({ facets }: Props) {
                   className="h-4 w-4 accent-[var(--brand)]"
                 />
                 {getMaterialGradeLabel(grade.value as MaterialGrade)}
+              </label>
+            ))}
+          </div>
+        </FilterSection>
+
+        <FilterSection title="Core Type">
+          <div className="space-y-2">
+            {facets.coreTypes.map((coreType) => (
+              <label key={coreType.value} className="flex items-center justify-between gap-3 text-sm text-text-muted">
+                <span className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={filters.coreTypes.includes(coreType.value as MaterialCoreType)}
+                    onChange={() => toggleCoreType(coreType.value as MaterialCoreType)}
+                    className="h-4 w-4 rounded accent-[var(--brand)]"
+                  />
+                  {getMaterialCoreTypeLabel(coreType.value as MaterialCoreType)}
+                </span>
+                <span className="text-xs text-text-soft">{coreType.count}</span>
               </label>
             ))}
           </div>

@@ -1,8 +1,14 @@
 "use client";
 
-import { Bookmark, Check, Download, GraduationCap, MapPin } from "lucide-react";
+import Link from "next/link";
+import { Bookmark, Check, Eye, GraduationCap, MapPin, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
-import { getMaterialGradeLabel, getMaterialTagLabel } from "@/lib/materials";
+import {
+  getMaterialCoreTypeLabel,
+  getMaterialGradeLabel,
+  getMaterialHref,
+  getMaterialTagLabel,
+} from "@/lib/materials";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 import type { StudyMaterial } from "@/types/resource";
@@ -125,6 +131,7 @@ export function ResourceCard({ material }: { material: StudyMaterial }) {
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
+        <Badge className="bg-[#f3ebe4] text-brand">{getMaterialCoreTypeLabel(material.core_type)}</Badge>
         {material.category_tags.map((tag) => (
           <Badge key={tag} className="bg-surface-muted">
             {getMaterialTagLabel(tag)}
@@ -141,12 +148,14 @@ export function ResourceCard({ material }: { material: StudyMaterial }) {
           <MapPin className="h-4 w-4 text-brand" />
           {material.origin}
         </span>
+        <span className="inline-flex items-center gap-2">
+          <UserRound className="h-4 w-4 text-brand" />
+          {material.author_name}
+        </span>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <span className="text-xs text-text-soft">
-          {material.downloads} downloads
-        </span>
+        <span className="text-xs text-text-soft">Open the page to read the markdown notes and attachments.</span>
         <div className="flex flex-wrap gap-2">
           {isLoggedIn ? (
             <Button size="sm" variant={isSaved ? "secondary" : "outline"} onClick={toggleSave} disabled={isSaving}>
@@ -155,10 +164,10 @@ export function ResourceCard({ material }: { material: StudyMaterial }) {
             </Button>
           ) : null}
           <Button asChild size="sm">
-            <a href={material.file_url}>
-              <Download className="h-4 w-4" />
-              Download
-            </a>
+            <Link href={getMaterialHref(material)}>
+              <Eye className="h-4 w-4" />
+              View
+            </Link>
           </Button>
         </div>
       </div>

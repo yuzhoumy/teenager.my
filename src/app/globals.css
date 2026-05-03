@@ -134,3 +134,11 @@ p {
     linear-gradient(to right, rgba(67, 66, 62, 0.4) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(67, 66, 62, 0.4) 1px, transparent 1px);
 }
+
+.markdown-content > :first-child {
+  margin-top: 0;
+}
+
+.markdown-content > :last-child {
+  margin-bottom: 0;
+}

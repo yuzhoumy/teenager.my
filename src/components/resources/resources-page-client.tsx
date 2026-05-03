@@ -1,19 +1,24 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
-import { groupMaterialsBySubject, getMaterialGradeLabel, getMaterialTagLabel } from "@/lib/materials";
+import type { FormEvent } from "react";
+import {
+  getMaterialCoreTypeLabel,
+  getMaterialGradeLabel,
+  getMaterialTagLabel,
+  groupMaterialsBySubject,
+} from "@/lib/materials";
 import { ResourceCard } from "@/components/resources/resource-card";
 import { ResourceFiltersBar } from "@/components/resources/resource-filters";
-import { UploadResourceModal } from "@/components/resources/upload-resource-modal";
 import { useMaterialFilters, useMaterialsQuery } from "@/components/resources/use-material-filters";
 
 function ActiveFiltersSummary({ filters }: { filters: ReturnType<typeof useMaterialsQuery>["filters"] }) {
   const tokens = [
     filters.grade ? getMaterialGradeLabel(filters.grade) : null,
+    ...filters.coreTypes.map((coreType) => getMaterialCoreTypeLabel(coreType)),
     ...filters.subjects,
     ...filters.tags.map((tag) => getMaterialTagLabel(tag)),
     ...filters.origins,
-  ].filter(Boolean);
+  ].filter((token): token is string => Boolean(token));
 
   return (
     <div className="flex flex-wrap gap-2">
@@ -27,7 +32,7 @@ function ActiveFiltersSummary({ filters }: { filters: ReturnType<typeof useMater
           </span>
         ))
       ) : (
-        <span className="text-sm text-text-muted">Showing all materials</span>
+        <span className="text-sm text-text-muted">Showing all resources</span>
       )}
     </div>
   );
@@ -35,16 +40,12 @@ function ActiveFiltersSummary({ filters }: { filters: ReturnType<typeof useMater
 
 export function ResourcesPageClient() {
   const { filters, facets, materials, loading, error } = useMaterialsQuery();
-  const { filters: mobileFilters, setSearchText } = useMaterialFilters();
-  const [searchInput, setSearchInput] = useState(mobileFilters.query);
-
-  useEffect(() => {
-    setSearchInput(mobileFilters.query);
-  }, [mobileFilters.query]);
+  const { setSearchText } = useMaterialFilters();
 
   function handleMobileSearchSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSearchText(searchInput);
+    const formData = new FormData(event.currentTarget);
+    setSearchText(`${formData.get("query") ?? ""}`.trim());
   }
 
   if (error && !facets) {
@@ -52,7 +53,7 @@ export function ResourcesPageClient() {
       <section className="space-y-6">
         <div className="rounded-[30px] border border-border bg-surface p-8 shadow-[0_4px_24px_var(--shadow)]">
           <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Metadata search</p>
-          <h1 className="mt-2 text-4xl text-foreground sm:text-5xl">Study materials</h1>
+          <h1 className="mt-2 text-4xl text-foreground sm:text-5xl">Study resources</h1>
           <div className="mt-4 rounded-2xl border border-[#e7c3b8] bg-[#fff4f0] p-4">
             <h2 className="text-2xl text-foreground">Setup needed</h2>
             <p className="mt-2 text-sm text-[#b53333]">{error}</p>
@@ -68,7 +69,7 @@ export function ResourcesPageClient() {
       <section className="space-y-6">
         <div className="rounded-[30px] border border-border bg-surface p-8 shadow-[0_4px_24px_var(--shadow)]">
           <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Metadata search</p>
-          <h1 className="mt-2 text-4xl text-foreground sm:text-5xl">Study materials</h1>
+          <h1 className="mt-2 text-4xl text-foreground sm:text-5xl">Study resources</h1>
           <p className="mt-3 text-base text-text-muted">Loading search filters...</p>
         </div>
       </section>
@@ -83,10 +84,12 @@ export function ResourcesPageClient() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Metadata search</p>
-          <h1 className="mt-2 text-4xl text-foreground sm:text-5xl">Study materials</h1>
-          <p className="mt-3 max-w-3xl text-base text-text-muted">Filter by grade, subject, tags, and origin with shareable URLs. If no subject is selected, results stay grouped by subject so students can scan the library naturally.</p>
+          <h1 className="mt-2 text-4xl text-foreground sm:text-5xl">Study resources</h1>
+          <p className="mt-3 max-w-3xl text-base text-text-muted">
+            Filter by core type, grade, subject, tags, and origin with shareable URLs. Open each resource as its own
+            page with markdown content and attachment links kept inside the write-up.
+          </p>
         </div>
-        <UploadResourceModal />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-6">
@@ -96,15 +99,16 @@ export function ResourcesPageClient() {
           <form onSubmit={handleMobileSearchSubmit} className="lg:hidden">
             <div className="rounded-[30px] border border-border bg-surface p-5 shadow-[0_4px_24px_var(--shadow)]">
               <label htmlFor="mobile-material-search" className="sr-only">
-                Search materials
+                Search resources
               </label>
               <div className="flex flex-wrap items-center gap-3">
                 <input
+                  key={filters.query}
                   id="mobile-material-search"
+                  name="query"
                   type="search"
-                  value={searchInput}
-                  onChange={(event) => setSearchInput(event.target.value)}
-                  placeholder="Search titles or tags like Form 5, Trial Paper"
+                  defaultValue={filters.query}
+                  placeholder="Search titles or filters like Form 5, Exercise, Trial Paper"
                   className="min-w-0 flex-1 rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
                 />
                 <button
@@ -122,7 +126,7 @@ export function ResourcesPageClient() {
               <div>
                 <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Results</p>
                 <h2 className="mt-2 text-3xl text-foreground">
-                  {loading ? "Loading materials..." : `${materials.length} materials`}
+                  {loading ? "Loading resources..." : `${materials.length} resources`}
                 </h2>
               </div>
               <p className="text-sm text-text-muted">Sorted by year</p>
@@ -134,18 +138,20 @@ export function ResourcesPageClient() {
 
           {error ? (
             <div className="rounded-[30px] border border-border bg-surface p-8 text-center shadow-[0_4px_24px_var(--shadow)]">
-              <h2 className="text-3xl text-foreground">Error loading materials</h2>
+              <h2 className="text-3xl text-foreground">Error loading resources</h2>
               <p className="mt-3 text-sm text-[#b53333]">{error}</p>
             </div>
           ) : loading ? (
             <div className="rounded-[30px] border border-border bg-surface p-8 text-center shadow-[0_4px_24px_var(--shadow)]">
-              <h2 className="text-3xl text-foreground">Fetching materials</h2>
-              <p className="mt-3 text-sm text-text-muted">Please wait while we load the study materials...</p>
+              <h2 className="text-3xl text-foreground">Fetching resources</h2>
+              <p className="mt-3 text-sm text-text-muted">Please wait while we load the study resources...</p>
             </div>
           ) : materials.length === 0 ? (
             <div className="rounded-[30px] border border-border bg-surface p-8 text-center shadow-[0_4px_24px_var(--shadow)]">
-              <h2 className="text-3xl text-foreground">No materials found</h2>
-              <p className="mt-3 text-sm text-text-muted">Try adjusting your filters or check back later for new uploads.</p>
+              <h2 className="text-3xl text-foreground">No resources found</h2>
+              <p className="mt-3 text-sm text-text-muted">
+                Try adjusting your filters or check back later for newly published pages.
+              </p>
             </div>
           ) : shouldGroupBySubject ? (
             <div className="space-y-8">

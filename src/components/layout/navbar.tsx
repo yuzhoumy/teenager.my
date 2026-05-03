@@ -5,7 +5,6 @@ import { BookOpen, Moon, Sun, UserCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
-import { Select } from "@/components/ui/select";
 
 const futureModules = [
   "Study Room",
@@ -17,19 +16,22 @@ const futureModules = [
 
 export function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window === "undefined") {
+      return "light";
+    }
+
+    const stored = window.localStorage.getItem("app.theme");
+    return stored === "light" || stored === "dark"
+      ? stored
+      : (window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light");
+  });
 
   const themeAriaLabel = theme === "dark" ? "Switch to light mode" : "Switch to dark mode";
 
   useEffect(() => {
-    // Load theme from localStorage or system preference
-    const stored = window.localStorage.getItem("app.theme");
-    const initialTheme = stored === "light" || stored === "dark" 
-      ? stored 
-      : (window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light");
-    setTheme(initialTheme);
-    document.documentElement.dataset.theme = initialTheme;
-  }, []);
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
 
   const toggleTheme = () => {
     setTheme((prev) => {

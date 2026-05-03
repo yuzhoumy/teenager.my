@@ -110,7 +110,7 @@ export default function Home() {
         <Card className="rounded-[30px]">
           <p className="text-sm uppercase tracking-[0.16em] text-text-soft">Now open</p>
           <h2 className="mt-3 text-3xl text-foreground">Study Resources</h2>
-          <p className="mt-3 text-sm text-text-muted">Live in Phase 1 with search, filters, bookmarks, and upload scaffold.</p>
+          <p className="mt-3 text-sm text-text-muted">Live in Phase 1 with search, filters, bookmarks, and dedicated resource pages.</p>
         </Card>
         <Card className="rounded-[30px]">
           <p className="text-sm uppercase tracking-[0.16em] text-text-soft">Designed next</p>
@@ -162,7 +162,7 @@ export default function Home() {
                 </div>
                 <h3 className="text-[1.7rem] text-foreground">{feature.title}</h3>
                 <p className="mt-3 text-sm text-text-muted">
-                  {feature.active ? "Live in Phase 1 with search, filters, bookmarks, and upload scaffold." : "Planned for upcoming phases. UI reserved and integration-ready."}
+                  {feature.active ? "Live in Phase 1 with search, filters, bookmarks, and dedicated resource pages." : "Planned for upcoming phases. UI reserved and integration-ready."}
                 </p>
               </Card>
             );
@@ -189,7 +189,7 @@ export default function Home() {
           <Card className="rounded-[30px]">
             <h3 className="text-2xl text-foreground">Collect</h3>
             <p className="mt-3 text-sm text-text-muted">
-              Bookmarks and uploads already have a visual place in the system, so the product can expand gracefully.
+              Bookmarks and resource detail pages already have a visual place in the system, so the product can expand gracefully.
             </p>
           </Card>
           <Card className="rounded-[30px] sm:col-span-2">
