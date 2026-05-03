@@ -5,7 +5,6 @@ import type { MaterialGrade, MaterialTag } from "@/types/database";
 import { getMaterialGradeLabel, getMaterialTagLabel, type MaterialFacets } from "@/lib/materials";
 import { useMaterialFilters } from "@/components/resources/use-material-filters";
 import { Button } from "@/components/ui/button";
-import { usePreferences } from "@/components/preferences/preferences-provider";
 
 type Props = {
   facets: MaterialFacets;
@@ -27,7 +26,6 @@ function FilterSection({
 }
 
 export function ResourceFiltersBar({ facets }: Props) {
-  const { t } = usePreferences();
   const { filters, setGrade, toggleSubject, toggleTag, toggleOrigin, clearAll } = useMaterialFilters();
   const [mobileOpen, setMobileOpen] = useState(true);
 
@@ -35,8 +33,8 @@ export function ResourceFiltersBar({ facets }: Props) {
     <aside className="rounded-[30px] border border-border bg-surface p-5 shadow-[0_4px_24px_var(--shadow)] lg:sticky lg:top-28">
       <div className="mb-5 flex items-center justify-between gap-3">
         <div>
-          <p className="text-sm uppercase tracking-[0.18em] text-text-soft">{t("search.filtersOverline")}</p>
-          <h2 className="mt-2 text-3xl text-foreground">{t("search.findMaterials")}</h2>
+          <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Filters</p>
+          <h2 className="mt-2 text-3xl text-foreground">Find materials</h2>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -46,20 +44,20 @@ export function ResourceFiltersBar({ facets }: Props) {
             className="lg:hidden"
             onClick={() => setMobileOpen((prev) => !prev)}
           >
-            {mobileOpen ? t("search.hideFilters") : t("search.showFilters")}
+            {mobileOpen ? "Hide filters" : "Show filters"}
           </Button>
           <button
             type="button"
             onClick={clearAll}
             className="text-sm font-medium text-brand hover:text-brand-soft"
           >
-            {t("search.clearAll")}
+            Clear all
           </button>
         </div>
       </div>
 
       <div className={`${mobileOpen ? "space-y-4" : "hidden"} lg:block lg:space-y-4`}>
-        <FilterSection title={t("search.grade")}>
+        <FilterSection title="Grade">
           <div className="space-y-2">
             <label className="flex items-center gap-3 text-sm text-text-muted">
               <input
@@ -69,7 +67,7 @@ export function ResourceFiltersBar({ facets }: Props) {
                 onChange={() => setGrade(null)}
                 className="h-4 w-4 accent-[var(--brand)]"
               />
-              {t("search.allGrades")}
+              All grades
             </label>
             {facets.grades.map((grade) => (
               <label key={grade.value} className="flex items-center gap-3 text-sm text-text-muted">
@@ -80,13 +78,13 @@ export function ResourceFiltersBar({ facets }: Props) {
                   onChange={() => setGrade(grade.value as MaterialGrade)}
                   className="h-4 w-4 accent-[var(--brand)]"
                 />
-                {getMaterialGradeLabel(grade.value as MaterialGrade, t)}
+                {getMaterialGradeLabel(grade.value as MaterialGrade)}
               </label>
             ))}
           </div>
         </FilterSection>
 
-        <FilterSection title={t("search.subjects")}>
+        <FilterSection title="Subjects">
           <div className="space-y-2">
             {facets.subjects.map((subject) => (
               <label key={subject.value} className="flex items-center justify-between gap-3 text-sm text-text-muted">
@@ -105,7 +103,7 @@ export function ResourceFiltersBar({ facets }: Props) {
           </div>
         </FilterSection>
 
-        <FilterSection title={t("search.tags")}>
+        <FilterSection title="Tags">
           <div className="space-y-2">
             {facets.tags.map((tag) => (
               <label key={tag.value} className="flex items-center justify-between gap-3 text-sm text-text-muted">
@@ -116,7 +114,7 @@ export function ResourceFiltersBar({ facets }: Props) {
                     onChange={() => toggleTag(tag.value as MaterialTag)}
                     className="h-4 w-4 rounded accent-[var(--brand)]"
                   />
-                  {getMaterialTagLabel(tag.value as MaterialTag, t)}
+                  {getMaterialTagLabel(tag.value as MaterialTag)}
                 </span>
                 <span className="text-xs text-text-soft">{tag.count}</span>
               </label>
@@ -124,7 +122,7 @@ export function ResourceFiltersBar({ facets }: Props) {
           </div>
         </FilterSection>
 
-        <FilterSection title={t("search.origin")}>
+        <FilterSection title="Origin">
           <div className="space-y-2">
             {facets.origins.map((origin) => (
               <label key={origin.value} className="flex items-center justify-between gap-3 text-sm text-text-muted">

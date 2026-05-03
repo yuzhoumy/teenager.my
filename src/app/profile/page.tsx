@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { usePreferences } from "@/components/preferences/preferences-provider";
+import { isValidSchool, schoolOptions } from "@/lib/schools";
 import type { Database } from "@/types/database";
 import type { StudyMaterial } from "@/types/resource";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
@@ -27,7 +27,6 @@ type ProfileInsert = Database["public"]["Tables"]["profiles"]["Insert"];
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { t } = usePreferences();
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -52,8 +51,7 @@ export default function ProfilePage() {
       setStatus("");
 
       if (!isSupabaseConfigured) {
-        setError(t("auth.configError"));
-        setLoadingProfile(false);
+      setError("Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local, then restart dev server.");
         return;
       }
 
@@ -151,11 +149,15 @@ export default function ProfilePage() {
     setStatus("");
 
     if (!isSupabaseConfigured) {
-      setError(t("auth.configError"));
+      setError("Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local, then restart dev server.");
       return;
     }
     if (!userId) {
       setError("Please log in to edit your profile.");
+      return;
+    }
+    if (!isValidSchool(school)) {
+      setError("Please select a school from the list.");
       return;
     }
 
@@ -239,7 +241,7 @@ export default function ProfilePage() {
     setStatus("");
 
     if (!isSupabaseConfigured) {
-      setError(t("auth.configError"));
+      setError("Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local, then restart dev server.");
       return;
     }
 
@@ -255,12 +257,12 @@ export default function ProfilePage() {
   return (
     <section className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">{t("profile.title")}</h1>
-        <p className="text-sm text-foreground/70">{t("profile.subtitle")}</p>
+        <h1 className="text-2xl font-bold">My Profile</h1>
+        <p className="text-sm text-foreground/70">Manage your student profile and saved resources.</p>
       </div>
 
       <Card className="space-y-2">
-        <h2 className="font-semibold">{t("profile.studentDetails")}</h2>
+        <h2 className="font-semibold">Student Details</h2>
         {!isLoggedIn && !loadingProfile ? (
           <p className="text-sm text-foreground/70">
             Please <Link href="/login" className="text-sky-600 hover:text-sky-500">log in</Link> to edit your profile.
@@ -270,26 +272,32 @@ export default function ProfilePage() {
         {isLoggedIn ? (
           <form className="space-y-3" onSubmit={onSaveProfile}>
             <Input
-              placeholder={t("profile.displayNameLabel")}
+              placeholder="Display Name"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               required
             />
             <Input
-              placeholder={t("profile.schoolLabel")}
+              list="school-options"
+              placeholder="School"
               value={school}
               onChange={(e) => setSchool(e.target.value)}
               required
             />
+            <datalist id="school-options">
+              {schoolOptions.map((option) => (
+                <option key={option} value={option} />
+              ))}
+            </datalist>
             <Select value={formLevel} onChange={(e) => setFormLevel(e.target.value)} required>
               {[1, 2, 3, 4, 5].map((value) => (
                 <option key={value} value={value}>
-                  {t("auth.formPrefix", { form: value })}
+                  Form {value}
                 </option>
               ))}
             </Select>
             <div className="space-y-2">
-              <label className="text-sm text-foreground/70">{t("profile.avatarLabel")}</label>
+              <label className="text-sm text-foreground/70">Avatar</label>
               <input
                 type="file"
                 accept="image/*"
@@ -329,15 +337,15 @@ export default function ProfilePage() {
 
       <Card>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-semibold">{t("profile.rewardsStreaks")}</h2>
-          <Badge className="bg-foreground/10 text-foreground/70">{t("nav.comingSoon")}</Badge>
+          <h2 className="font-semibold">Rewards / Streaks</h2>
+          <Badge className="bg-foreground/10 text-foreground/70">Coming Soon</Badge>
         </div>
         {/* TODO: Hook streak logic from profile engagement events */}
-        <p className="text-sm text-foreground/70">{t("profile.streakPlaceholder")}</p>
+        <p className="text-sm text-foreground/70">Streak UI placeholder for Phase 1. Logic and rewards tracking come in next phase.</p>
       </Card>
 
       <Card>
-        <h2 className="mb-2 font-semibold">{t("profile.bookmarkedResources")}</h2>
+        <h2 className="mb-2 font-semibold">Bookmarked Resources</h2>
         {loadingSavedResources ? (
           <p className="text-sm text-foreground/70">Loading saved resources...</p>
         ) : savedResources.length === 0 ? (
@@ -368,7 +376,7 @@ export default function ProfilePage() {
       </Card>
 
       <Card>
-        <h2 className="mb-2 font-semibold">{t("profile.uploadedResources")}</h2>
+        <h2 className="mb-2 font-semibold">Uploaded Resources</h2>
         <ul className="space-y-2 text-sm text-foreground/70">
           {placeholderUploads.map((item) => (
             <li key={item} className="rounded-lg bg-foreground/5 px-3 py-2">

@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
-import { usePreferences } from "@/components/preferences/preferences-provider";
 
 export function LoginForm() {
   const router = useRouter();
@@ -16,7 +15,6 @@ export function LoginForm() {
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
-  const { t } = usePreferences();
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -25,7 +23,7 @@ export function LoginForm() {
     setLoading(true);
 
     if (!isSupabaseConfigured) {
-      setError(t("auth.configError"));
+      setError("Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local, then restart dev server.");
       setLoading(false);
       return;
     }
@@ -40,7 +38,7 @@ export function LoginForm() {
       return;
     }
 
-    setStatus(t("auth.statusLoginSuccess"));
+    setStatus("Login successful. Redirect logic will be added in Phase 2.");
     setLoading(false);
     router.replace("/profile");
   }
@@ -48,19 +46,19 @@ export function LoginForm() {
   return (
     <Card className="mx-auto w-full max-w-md rounded-[32px]">
       <p className="mb-3 text-sm uppercase tracking-[0.18em] text-text-soft">Account</p>
-      <h1 className="mb-1 text-4xl text-foreground">{t("auth.welcomeBack")}</h1>
-      <p className="mb-6 text-sm text-text-muted">{t("auth.loginSubtitle")}</p>
+      <h1 className="mb-1 text-4xl text-foreground">Welcome back</h1>
+      <p className="mb-6 text-sm text-text-muted">Login with your school account to continue.</p>
       <form onSubmit={onSubmit} className="space-y-4">
         <Input
           type="email"
-          placeholder={t("auth.emailPlaceholder")}
+          placeholder="you@moe-dl.edu.my"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
         />
         <Input
           type="password"
-          placeholder={t("auth.passwordPlaceholder")}
+          placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -68,13 +66,13 @@ export function LoginForm() {
         {error ? <p className="text-sm text-[#b53333]">{error}</p> : null}
         {status ? <p className="text-sm text-brand">{status}</p> : null}
         <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? t("auth.signingIn") : t("auth.loginButton")}
+          {loading ? "Signing in..." : "Login"}
         </Button>
       </form>
       <p className="mt-5 text-sm text-text-muted">
-        {t("auth.noAccountYet")}{" "}
+        No account yet?{" "}
         <Link href="/register" className="font-semibold text-brand hover:text-brand-soft">
-          {t("auth.registerLink")}
+          Register
         </Link>
       </p>
     </Card>

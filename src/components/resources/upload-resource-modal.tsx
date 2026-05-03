@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { usePreferences } from "@/components/preferences/preferences-provider";
 
 const bucketName = process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET ?? "resource-attachments";
 
@@ -36,7 +35,6 @@ export function UploadResourceModal() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const { t } = usePreferences();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -65,8 +63,8 @@ export function UploadResourceModal() {
     }
 
     const yearNumber = Number(year);
-    if (!Number.isFinite(yearNumber) || yearNumber < 2000 || yearNumber > 2100) {
-      setError("Please enter a valid year between 2000 and 2100.");
+    if (!Number.isFinite(yearNumber) || yearNumber < 1990 || yearNumber > 2100) {
+      setError("Please enter a valid year between 1990 and 2100.");
       return;
     }
 
@@ -145,48 +143,48 @@ export function UploadResourceModal() {
 
   return (
     <>
-      <Button onClick={() => setOpen(true)}>{t("search.uploadMaterial")}</Button>
+      <Button onClick={() => setOpen(true)}>Upload Resource</Button>
       {open ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4">
           <div className="w-full max-w-lg rounded-[32px] border border-border bg-background p-6 shadow-[0_24px_70px_rgba(0,0,0,0.24)]">
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <p className="text-sm uppercase tracking-[0.18em] text-text-soft">{t("search.placeholder")}</p>
-                <h2 className="mt-2 text-2xl text-foreground">{t("search.uploadStudyMaterial")}</h2>
+                <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Upload</p>
+                <h2 className="mt-2 text-2xl text-foreground">Upload Study Resource</h2>
               </div>
               <button
                 type="button"
                 className="rounded-xl px-3 py-2 text-text-muted hover:bg-surface-muted hover:text-foreground"
                 onClick={() => setOpen(false)}
               >
-                {t("upload.close")}
+                Close
               </button>
             </div>
             <form className="space-y-3" onSubmit={handleSubmit}>
               <Input
-                placeholder={t("upload.titlePlaceholder")}
+                placeholder="Title"
                 required
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
               />
               <Select required value={grade} onChange={(event) => setGrade(event.target.value as MaterialGrade)}>
                 <option value="" disabled>
-                  {t("search.grade")}
+                  Select Category
                 </option>
-                <option value="f1">{t("auth.formPrefix", { form: 1 })}</option>
-                <option value="f2">{t("auth.formPrefix", { form: 2 })}</option>
-                <option value="f3">{t("auth.formPrefix", { form: 3 })}</option>
-                <option value="f4">{t("auth.formPrefix", { form: 4 })}</option>
-                <option value="f5">{t("auth.formPrefix", { form: 5 })}</option>
+                <option value="f1">Form 1</option>
+                <option value="f2">Form 2</option>
+                <option value="f3">Form 3</option>
+                <option value="f4">Form 4</option>
+                <option value="f5">Form 5</option>
               </Select>
               <Input
-                placeholder={t("upload.subjectPlaceholder")}
+                placeholder="Subject"
                 required
                 value={subject}
                 onChange={(event) => setSubject(event.target.value)}
               />
               <Input
-                placeholder={t("search.origin")}
+                placeholder="Origin"
                 required
                 value={origin}
                 onChange={(event) => setOrigin(event.target.value)}
@@ -195,13 +193,13 @@ export function UploadResourceModal() {
                 type="number"
                 min={2000}
                 max={2100}
-                placeholder={t("resourceFilters.yearPlaceholder")}
+                placeholder="Year"
                 required
                 value={year}
                 onChange={(event) => setYear(event.target.value)}
               />
               <Input
-                placeholder={`${t("search.tagsCommaSeparated")} (exercise, notes, past-year, trial-paper)`}
+                placeholder="Tags (exercise, notes, past-year, trial-paper)"
                 required
                 value={tagInput}
                 onChange={(event) => setTagInput(event.target.value)}
@@ -212,7 +210,7 @@ export function UploadResourceModal() {
                 onChange={(event) => setFile(event.target.files?.[0] ?? null)}
               />
               <Textarea
-                placeholder={t("upload.optionalNotes")}
+                placeholder="Optional notes"
                 rows={3}
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
@@ -220,7 +218,7 @@ export function UploadResourceModal() {
               {error ? <p className="text-sm text-[#b53333]">{error}</p> : null}
               {message ? <p className="text-sm text-text-muted">{message}</p> : null}
               <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? "Uploading..." : t("search.submitPlaceholder")}
+                {isSubmitting ? "Uploading..." : "Submit"}
               </Button>
             </form>
           </div>

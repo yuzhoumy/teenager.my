@@ -3,17 +3,34 @@
 import Link from "next/link";
 import { BookOpen, Home, Layers2, Moon, Sun, User } from "lucide-react";
 import { useEffect, useState } from "react";
-import { usePreferences } from "@/components/preferences/preferences-provider";
 import { Button } from "@/components/ui/button";
-import { languageOptions, type Language } from "@/lib/i18n/messages";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { Select } from "@/components/ui/select";
 
 export function MobileBottomNav() {
-  const { t, theme, toggleTheme, language, setLanguage } = usePreferences();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
 
-  const themeAriaLabel = theme === "dark" ? t("theme.light") : t("theme.dark");
+  const themeAriaLabel = theme === "dark" ? "Switch to light mode" : "Switch to dark mode";
+
+  useEffect(() => {
+    // Load theme from localStorage or system preference
+    const stored = window.localStorage.getItem("app.theme");
+    const initialTheme = stored === "light" || stored === "dark" 
+      ? stored 
+      : (window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light");
+    setTheme(initialTheme);
+    document.documentElement.dataset.theme = initialTheme;
+  }, []);
+
+  const toggleTheme = () => {
+    setTheme((prev) => {
+      const next = prev === "dark" ? "light" : "dark";
+      window.localStorage.setItem("app.theme", next);
+      document.documentElement.dataset.theme = next;
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -37,40 +54,28 @@ export function MobileBottomNav() {
         <div className="grid grid-cols-4 gap-2">
           <Link href="/" className="flex flex-col items-center gap-1 rounded-2xl py-2 text-xs text-text-muted">
             <Home className="h-4 w-4" />
-            {t("nav.home")}
+            Home
           </Link>
           <Link href="/search" className="flex flex-col items-center gap-1 rounded-2xl py-2 text-xs text-text-muted">
             <BookOpen className="h-4 w-4" />
-            {t("nav.resources")}
+            Resources
           </Link>
           <div className="flex flex-col items-center gap-1 rounded-2xl py-2 text-xs text-text-soft">
             <Layers2 className="h-4 w-4" />
-            {t("nav.studyRoom")}
+            Study Room
           </div>
           <Link
             href={isLoggedIn ? "/profile" : "/login"}
             className="flex flex-col items-center gap-1 rounded-2xl py-2 text-xs text-text-muted"
           >
             <User className="h-4 w-4" />
-            {isLoggedIn ? t("nav.profile") : t("nav.login")}
+            {isLoggedIn ? "Profile" : "Login"}
           </Link>
         </div>
         <div className="flex items-center justify-center gap-2">
           <Button variant="ghost" size="sm" onClick={toggleTheme} aria-label={themeAriaLabel}>
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
-          <Select
-            value={language}
-            onChange={(e) => setLanguage(e.target.value as Language)}
-            aria-label={t("nav.language")}
-            className="h-9 w-auto min-w-24 cursor-pointer py-1 font-medium"
-          >
-            {languageOptions.map((opt) => (
-              <option key={opt.code} value={opt.code}>
-                {opt.short}
-              </option>
-            ))}
-          </Select>
         </div>
       </div>
     </nav>

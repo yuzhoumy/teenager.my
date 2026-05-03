@@ -1,6 +1,5 @@
 import { supabase } from "@/lib/supabase";
 import type { MaterialGrade, MaterialTag } from "@/types/database";
-import type { TranslationKey } from "@/lib/i18n/messages";
 import type { StudyMaterial } from "@/types/resource";
 
 type SearchParamValue = string | string[] | undefined;
@@ -60,18 +59,12 @@ const materialTagTranslationKeys: Record<MaterialTag, TranslationKey> = {
   "trial-paper": "search.tag.trialPaper",
 };
 
-export function getMaterialGradeLabel(
-  grade: MaterialGrade,
-  t: (key: TranslationKey, vars?: Record<string, string | number>) => string,
-) {
-  return t("auth.formPrefix", { form: materialGradeToForm[grade] });
+export function getMaterialGradeLabel(grade: MaterialGrade) {
+  return materialGradeLabels[grade];
 }
 
-export function getMaterialTagLabel(
-  tag: MaterialTag,
-  t: (key: TranslationKey, vars?: Record<string, string | number>) => string,
-) {
-  return t(materialTagTranslationKeys[tag]);
+export function getMaterialTagLabel(tag: MaterialTag) {
+  return materialTagLabels[tag];
 }
 
 function normalizeSearchParam(value: SearchParamValue) {

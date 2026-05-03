@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { getMoeEmailError } from "@/lib/validators";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
-import { usePreferences } from "@/components/preferences/preferences-provider";
+import { isValidSchool, schoolOptions } from "@/lib/schools";
 
 export function RegisterForm() {
   const [displayName, setDisplayName] = useState("");
@@ -19,12 +19,16 @@ export function RegisterForm() {
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
-  const { t } = usePreferences();
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     setStatus("");
+
+    if (!isValidSchool(school)) {
+      setError("Please select a school from the list.");
+      return;
+    }
 
     const emailError = getMoeEmailError(email);
     if (emailError) {
@@ -34,7 +38,7 @@ export function RegisterForm() {
 
     setLoading(true);
     if (!isSupabaseConfigured) {
-      setError(t("auth.configError"));
+      setError("Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local, then restart dev server.");
       setLoading(false);
       return;
     }
@@ -57,40 +61,51 @@ export function RegisterForm() {
       return;
     }
 
-    setStatus(t("auth.statusRegisterSuccess"));
+    setStatus("Registration successful. Check your email to confirm your account.");
     setLoading(false);
   }
 
   return (
     <Card className="mx-auto w-full max-w-md rounded-[32px]">
       <p className="mb-3 text-sm uppercase tracking-[0.18em] text-text-soft">Account</p>
-      <h1 className="mb-1 text-4xl text-foreground">{t("auth.createAccount")}</h1>
-      <p className="mb-6 text-sm text-text-muted">{t("auth.registerSubtitle")}</p>
+      <h1 className="mb-1 text-4xl text-foreground">Create your account</h1>
+      <p className="mb-6 text-sm text-text-muted">Only MOE school emails can register.</p>
       <form onSubmit={onSubmit} className="space-y-4">
         <Input
-          placeholder={t("auth.displayNamePlaceholder")}
+          placeholder="Display name"
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
           required
         />
-        <Input placeholder={t("auth.schoolPlaceholder")} value={school} onChange={(e) => setSchool(e.target.value)} required />
+        <Input
+          list="school-options"
+          placeholder="School"
+          value={school}
+          onChange={(e) => setSchool(e.target.value)}
+          required
+        />
+        <datalist id="school-options">
+          {schoolOptions.map((option) => (
+            <option key={option} value={option} />
+          ))}
+        </datalist>
         <Select value={formLevel} onChange={(e) => setFormLevel(e.target.value)} required>
           {[1, 2, 3, 4, 5].map((value) => (
             <option key={value} value={value}>
-              {t("auth.formPrefix", { form: value })}
+              Form {value}
             </option>
           ))}
         </Select>
         <Input
           type="email"
-          placeholder={t("auth.emailPlaceholder")}
+          placeholder="you@moe-dl.edu.my"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
         />
         <Input
           type="password"
-          placeholder={t("auth.passwordPlaceholder")}
+          placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -98,13 +113,13 @@ export function RegisterForm() {
         {error ? <p className="text-sm text-[#b53333]">{error}</p> : null}
         {status ? <p className="text-sm text-brand">{status}</p> : null}
         <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? t("auth.creatingAccount") : t("auth.registerButton")}
+          {loading ? "Creating account..." : "Register"}
         </Button>
       </form>
       <p className="mt-5 text-sm text-text-muted">
-        {t("auth.alreadyHaveAccount")}{" "}
+        Already have an account?{" "}
         <Link href="/login" className="font-semibold text-brand hover:text-brand-soft">
-          {t("auth.loginLink")}
+          Login
         </Link>
       </p>
     </Card>

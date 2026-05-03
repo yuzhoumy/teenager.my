@@ -14,18 +14,15 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { usePreferences } from "@/components/preferences/preferences-provider";
 
 export default function Home() {
-  const { t } = usePreferences();
-
   const features = [
-    { titleKey: "home.feature.studyResources", icon: BookOpen, active: true },
-    { titleKey: "home.feature.studyRoom", icon: Layers2, active: false },
-    { titleKey: "home.feature.studyBuddy", icon: Handshake, active: false },
-    { titleKey: "home.feature.flashcards", icon: NotebookPen, active: false },
-    { titleKey: "home.feature.quiz", icon: Brain, active: false },
-    { titleKey: "home.feature.rewardsStreaks", icon: Gift, active: false },
+    { title: "Study Resources", icon: BookOpen, active: true },
+    { title: "Study Room", icon: Layers2, active: false },
+    { title: "Study Buddy", icon: Handshake, active: false },
+    { title: "Flashcards", icon: NotebookPen, active: false },
+    { title: "Quiz", icon: Brain, active: false },
+    { title: "Rewards/Streaks", icon: Gift, active: false },
   ] as const;
 
   const pillars = [
@@ -48,23 +45,23 @@ export default function Home() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.8fr)]">
         <div className="paper-grid relative overflow-hidden rounded-[36px] border border-border bg-surface px-6 py-8 shadow-[0_16px_48px_var(--shadow)] sm:px-8 sm:py-10 lg:px-10 lg:py-12">
           <div className="absolute -right-12 top-8 h-36 w-36 rounded-full bg-[color:rgba(201,100,66,0.12)] blur-3xl" />
-          <Badge className="mb-5">{t("home.phase1")}</Badge>
+          <Badge className="mb-5">Phase 1</Badge>
           <p className="mb-4 text-sm uppercase tracking-[0.18em] text-text-soft">
             Study resources, carefully arranged
           </p>
           <h1 className="text-balance max-w-3xl text-4xl text-foreground sm:text-5xl lg:text-[4rem]">
-            {t("home.heroTitle")}
+            Learn smarter with resources made for Malaysian students.
           </h1>
           <p className="mt-5 max-w-2xl text-base text-text-muted sm:text-lg">
-            {t("home.heroDescription")}
+            teenager.my helps you find trial papers, past-year papers, and notes in one clean mobile-friendly portal.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Button asChild size="lg">
-              <Link href="/register">{t("home.getStarted")}</Link>
+              <Link href="/register">Get Started</Link>
             </Button>
             <Button asChild variant="outline" size="lg">
               <Link href="/search">
-                {t("home.browseResources")} <ArrowRight className="h-4 w-4" />
+                Browse Resources <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
           </div>
@@ -112,19 +109,19 @@ export default function Home() {
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="rounded-[30px]">
           <p className="text-sm uppercase tracking-[0.16em] text-text-soft">Now open</p>
-          <h2 className="mt-3 text-3xl text-foreground">{t("home.feature.studyResources")}</h2>
-          <p className="mt-3 text-sm text-text-muted">{t("home.featureLiveDescription")}</p>
+          <h2 className="mt-3 text-3xl text-foreground">Study Resources</h2>
+          <p className="mt-3 text-sm text-text-muted">Live in Phase 1 with search, filters, bookmarks, and upload scaffold.</p>
         </Card>
         <Card className="rounded-[30px]">
           <p className="text-sm uppercase tracking-[0.16em] text-text-soft">Designed next</p>
-          <h2 className="mt-3 text-3xl text-foreground">{t("nav.studyRoom")}</h2>
+          <h2 className="mt-3 text-3xl text-foreground">Study Room</h2>
           <p className="mt-3 text-sm text-text-muted">
             Quiet collaboration spaces, revision sessions, and a stronger sense of momentum.
           </p>
         </Card>
         <Card className="rounded-[30px]">
           <p className="text-sm uppercase tracking-[0.16em] text-text-soft">On the roadmap</p>
-          <h2 className="mt-3 text-3xl text-foreground">{t("nav.studyBuddy")}</h2>
+          <h2 className="mt-3 text-3xl text-foreground">Study Buddy</h2>
           <p className="mt-3 text-sm text-text-muted">
             Supportive tools for flashcards, quizzes, and rewards without turning the portal into a dashboard.
           </p>
@@ -134,7 +131,7 @@ export default function Home() {
       <div>
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-sm uppercase tracking-[0.18em] text-text-soft">{t("home.featureHighlights")}</p>
+            <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Feature Highlights</p>
             <h2 className="mt-2 text-4xl text-foreground sm:text-5xl">A homepage shaped like chapters.</h2>
           </div>
           <Button asChild variant="secondary">
@@ -146,7 +143,7 @@ export default function Home() {
             const Icon = feature.icon;
             return (
               <Card
-                key={feature.titleKey}
+                key={feature.title}
                 className={
                   feature.active
                     ? "rounded-[30px] border-border-strong bg-surface-strong"
@@ -161,11 +158,11 @@ export default function Home() {
                   >
                     <Icon className="h-5 w-5" />
                   </div>
-                  {!feature.active ? <Badge>{t("nav.comingSoon")}</Badge> : null}
+                  {!feature.active ? <Badge>Coming Soon</Badge> : null}
                 </div>
-                <h3 className="text-[1.7rem] text-foreground">{t(feature.titleKey)}</h3>
+                <h3 className="text-[1.7rem] text-foreground">{feature.title}</h3>
                 <p className="mt-3 text-sm text-text-muted">
-                  {feature.active ? t("home.featureLiveDescription") : t("home.featurePlannedDescription")}
+                  {feature.active ? "Live in Phase 1 with search, filters, bookmarks, and upload scaffold." : "Planned for upcoming phases. UI reserved and integration-ready."}
                 </p>
               </Card>
             );

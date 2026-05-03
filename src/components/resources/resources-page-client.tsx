@@ -5,14 +5,12 @@ import { ResourceCard } from "@/components/resources/resource-card";
 import { ResourceFiltersBar } from "@/components/resources/resource-filters";
 import { UploadResourceModal } from "@/components/resources/upload-resource-modal";
 import { useMaterialsQuery } from "@/components/resources/use-material-filters";
-import { usePreferences } from "@/components/preferences/preferences-provider";
 
 function ActiveFiltersSummary({ filters }: { filters: ReturnType<typeof useMaterialsQuery>["filters"] }) {
-  const { t } = usePreferences();
   const tokens = [
-    filters.grade ? getMaterialGradeLabel(filters.grade, t) : null,
+    filters.grade ? getMaterialGradeLabel(filters.grade) : null,
     ...filters.subjects,
-    ...filters.tags.map((tag) => getMaterialTagLabel(tag, t)),
+    ...filters.tags.map((tag) => getMaterialTagLabel(tag)),
     ...filters.origins,
   ].filter(Boolean);
 
@@ -28,26 +26,25 @@ function ActiveFiltersSummary({ filters }: { filters: ReturnType<typeof useMater
           </span>
         ))
       ) : (
-        <span className="text-sm text-text-muted">{t("search.showingAllMaterials")}</span>
+        <span className="text-sm text-text-muted">Showing all materials</span>
       )}
     </div>
   );
 }
 
 export function ResourcesPageClient() {
-  const { t } = usePreferences();
   const { filters, facets, materials, loading, error } = useMaterialsQuery();
 
   if (error && !facets) {
     return (
       <section className="space-y-6">
         <div className="rounded-[30px] border border-border bg-surface p-8 shadow-[0_4px_24px_var(--shadow)]">
-          <p className="text-sm uppercase tracking-[0.18em] text-text-soft">{t("search.overline")}</p>
-          <h1 className="mt-2 text-4xl text-foreground sm:text-5xl">{t("search.title")}</h1>
+          <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Metadata search</p>
+          <h1 className="mt-2 text-4xl text-foreground sm:text-5xl">Study materials</h1>
           <div className="mt-4 rounded-2xl border border-[#e7c3b8] bg-[#fff4f0] p-4">
-            <h2 className="text-2xl text-foreground">{t("search.setupNeeded")}</h2>
+            <h2 className="text-2xl text-foreground">Setup needed</h2>
             <p className="mt-2 text-sm text-[#b53333]">{error}</p>
-            <p className="mt-3 text-sm text-text-muted">{t("search.setupNeededDescription")}</p>
+            <p className="mt-3 text-sm text-text-muted">Please check your Supabase configuration and database setup.</p>
           </div>
         </div>
       </section>
@@ -58,9 +55,9 @@ export function ResourcesPageClient() {
     return (
       <section className="space-y-6">
         <div className="rounded-[30px] border border-border bg-surface p-8 shadow-[0_4px_24px_var(--shadow)]">
-          <p className="text-sm uppercase tracking-[0.18em] text-text-soft">{t("search.overline")}</p>
-          <h1 className="mt-2 text-4xl text-foreground sm:text-5xl">{t("search.title")}</h1>
-          <p className="mt-3 text-base text-text-muted">{t("search.loadingFacets")}</p>
+          <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Metadata search</p>
+          <h1 className="mt-2 text-4xl text-foreground sm:text-5xl">Study materials</h1>
+          <p className="mt-3 text-base text-text-muted">Loading search filters...</p>
         </div>
       </section>
     );
@@ -73,9 +70,9 @@ export function ResourcesPageClient() {
     <section className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm uppercase tracking-[0.18em] text-text-soft">{t("search.overline")}</p>
-          <h1 className="mt-2 text-4xl text-foreground sm:text-5xl">{t("search.title")}</h1>
-          <p className="mt-3 max-w-3xl text-base text-text-muted">{t("search.description")}</p>
+          <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Metadata search</p>
+          <h1 className="mt-2 text-4xl text-foreground sm:text-5xl">Study materials</h1>
+          <p className="mt-3 max-w-3xl text-base text-text-muted">Filter by grade, subject, tags, and origin with shareable URLs. If no subject is selected, results stay grouped by subject so students can scan the library naturally.</p>
         </div>
         <UploadResourceModal />
       </div>
@@ -87,12 +84,12 @@ export function ResourcesPageClient() {
           <div className="rounded-[30px] border border-border bg-surface p-5 shadow-[0_4px_24px_var(--shadow)]">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-sm uppercase tracking-[0.18em] text-text-soft">{t("search.results")}</p>
+                <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Results</p>
                 <h2 className="mt-2 text-3xl text-foreground">
-                  {loading ? t("search.loadingMaterials") : t("search.materialCount", { count: materials.length })}
+                  {loading ? "Loading materials..." : `${materials.length} materials`}
                 </h2>
               </div>
-              <p className="text-sm text-text-muted">{t("search.sortedByYear")}</p>
+              <p className="text-sm text-text-muted">Sorted by year</p>
             </div>
             <div className="mt-4">
               <ActiveFiltersSummary filters={filters} />
@@ -101,25 +98,25 @@ export function ResourcesPageClient() {
 
           {error ? (
             <div className="rounded-[30px] border border-border bg-surface p-8 text-center shadow-[0_4px_24px_var(--shadow)]">
-              <h2 className="text-3xl text-foreground">{t("search.errorTitle")}</h2>
+              <h2 className="text-3xl text-foreground">Error loading materials</h2>
               <p className="mt-3 text-sm text-[#b53333]">{error}</p>
             </div>
           ) : loading ? (
             <div className="rounded-[30px] border border-border bg-surface p-8 text-center shadow-[0_4px_24px_var(--shadow)]">
-              <h2 className="text-3xl text-foreground">{t("search.fetchingMaterials")}</h2>
-              <p className="mt-3 text-sm text-text-muted">{t("search.fetchingMaterialsDescription")}</p>
+              <h2 className="text-3xl text-foreground">Fetching materials</h2>
+              <p className="mt-3 text-sm text-text-muted">Please wait while we load the study materials...</p>
             </div>
           ) : materials.length === 0 ? (
             <div className="rounded-[30px] border border-border bg-surface p-8 text-center shadow-[0_4px_24px_var(--shadow)]">
-              <h2 className="text-3xl text-foreground">{t("search.emptyTitle")}</h2>
-              <p className="mt-3 text-sm text-text-muted">{t("search.emptyDescription")}</p>
+              <h2 className="text-3xl text-foreground">No materials found</h2>
+              <p className="mt-3 text-sm text-text-muted">Try adjusting your filters or check back later for new uploads.</p>
             </div>
           ) : shouldGroupBySubject ? (
             <div className="space-y-8">
               {groupedMaterials.map(([subject, subjectMaterials]) => (
                 <section key={subject} className="space-y-4">
                   <div>
-                    <p className="text-sm uppercase tracking-[0.18em] text-text-soft">{t("search.subject")}</p>
+                    <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Subject</p>
                     <h2 className="mt-2 text-3xl text-foreground">{subject}</h2>
                   </div>
                   <div className="grid gap-4 xl:grid-cols-2">

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AppShell } from "@/components/layout/app-shell";
-import { PreferencesProvider } from "@/components/preferences/preferences-provider";
 
 export const metadata: Metadata = {
   title: "teenager.my",
@@ -16,9 +15,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased">
       <body className="editorial-shell min-h-full">
-        <PreferencesProvider>
-          <AppShell>{children}</AppShell>
-        </PreferencesProvider>
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );

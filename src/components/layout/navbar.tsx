@@ -4,24 +4,41 @@ import Link from "next/link";
 import { BookOpen, Moon, Sun, UserCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { usePreferences } from "@/components/preferences/preferences-provider";
-import { languageOptions, type Language } from "@/lib/i18n/messages";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { Select } from "@/components/ui/select";
 
-const futureModuleKeys = [
-  "nav.studyRoom",
-  "nav.studyBuddy",
-  "nav.flashcards",
-  "nav.quiz",
-  "nav.rewardsStreaks",
+const futureModules = [
+  "Study Room",
+  "Study Buddy", 
+  "Flashcards",
+  "Quiz",
+  "Rewards/Streaks",
 ] as const;
 
 export function Navbar() {
-  const { t, theme, toggleTheme, language, setLanguage } = usePreferences();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
 
-  const themeAriaLabel = theme === "dark" ? t("theme.light") : t("theme.dark");
+  const themeAriaLabel = theme === "dark" ? "Switch to light mode" : "Switch to dark mode";
+
+  useEffect(() => {
+    // Load theme from localStorage or system preference
+    const stored = window.localStorage.getItem("app.theme");
+    const initialTheme = stored === "light" || stored === "dark" 
+      ? stored 
+      : (window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light");
+    setTheme(initialTheme);
+    document.documentElement.dataset.theme = initialTheme;
+  }, []);
+
+  const toggleTheme = () => {
+    setTheme((prev) => {
+      const next = prev === "dark" ? "light" : "dark";
+      window.localStorage.setItem("app.theme", next);
+      document.documentElement.dataset.theme = next;
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -56,15 +73,15 @@ export function Navbar() {
 
         <nav className="hidden items-center gap-5 lg:flex">
           <Link href="/" className="text-sm text-text-muted hover:text-foreground">
-            {t("nav.home")}
+            Home
           </Link>
           <Link href="/search" className="text-sm text-text-muted hover:text-foreground">
-            {t("nav.resources")}
+            Resources
           </Link>
 
-          {futureModuleKeys.map((featureKey) => (
-            <span key={featureKey} className="text-sm text-text-soft">
-              {t(featureKey)}
+          {futureModules.map((module) => (
+            <span key={module} className="text-sm text-text-soft">
+              {module}
             </span>
           ))}
 
@@ -77,24 +94,12 @@ export function Navbar() {
             >
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
-            <Select
-              value={language}
-              onChange={(e) => setLanguage(e.target.value as Language)}
-              aria-label={t("nav.language")}
-              className="h-9 w-auto min-w-20 cursor-pointer border-0 bg-transparent py-1 font-medium shadow-none"
-            >
-              {languageOptions.map((opt) => (
-                <option key={opt.code} value={opt.code}>
-                  {opt.short}
-                </option>
-              ))}
-            </Select>
           </div>
 
           <Button asChild variant="secondary" size="sm">
             <Link href={isLoggedIn ? "/profile" : "/login"}>
               <UserCircle2 className="h-4 w-4" />
-              {isLoggedIn ? t("nav.profile") : t("nav.login")}
+              {isLoggedIn ? "Profile" : "Login"}
             </Link>
           </Button>
         </nav>

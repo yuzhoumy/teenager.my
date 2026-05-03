@@ -9,10 +9,8 @@ import type { StudyMaterial } from "@/types/resource";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { usePreferences } from "@/components/preferences/preferences-provider";
 
 export function ResourceCard({ material }: { material: StudyMaterial }) {
-  const { t } = usePreferences();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -116,7 +114,7 @@ export function ResourceCard({ material }: { material: StudyMaterial }) {
       <div className="mb-4 flex flex-wrap gap-2">
         {material.category_tags.map((tag) => (
           <Badge key={tag} className="bg-surface-muted">
-            {getMaterialTagLabel(tag, t)}
+            {getMaterialTagLabel(tag)}
           </Badge>
         ))}
       </div>
@@ -124,7 +122,7 @@ export function ResourceCard({ material }: { material: StudyMaterial }) {
       <div className="mb-5 flex flex-wrap gap-4 text-sm text-text-muted">
         <span className="inline-flex items-center gap-2">
           <GraduationCap className="h-4 w-4 text-brand" />
-          {getMaterialGradeLabel(material.grade, t)}
+          {getMaterialGradeLabel(material.grade)}
         </span>
         <span className="inline-flex items-center gap-2">
           <MapPin className="h-4 w-4 text-brand" />
@@ -134,19 +132,19 @@ export function ResourceCard({ material }: { material: StudyMaterial }) {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <span className="text-xs text-text-soft">
-          {t("search.downloadCount", { count: material.downloads })}
+          {material.downloads} downloads
         </span>
         <div className="flex flex-wrap gap-2">
           {isLoggedIn ? (
             <Button size="sm" variant={isSaved ? "secondary" : "outline"} onClick={toggleSave} disabled={isSaving}>
               {isSaved ? <Check className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}
-              {isSaving ? t("search.saving") : isSaved ? t("search.saved") : t("search.save")}
+              {isSaving ? "Saving..." : isSaved ? "Saved" : "Save"}
             </Button>
           ) : null}
           <Button asChild size="sm">
             <a href={material.file_url}>
               <Download className="h-4 w-4" />
-              {t("search.openFile")}
+              Download
             </a>
           </Button>
         </div>
