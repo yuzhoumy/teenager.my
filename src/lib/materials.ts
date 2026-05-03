@@ -44,21 +44,6 @@ export const materialTagLabels: Record<MaterialTag, string> = {
   "trial-paper": "Trial Paper",
 };
 
-const materialGradeToForm: Record<MaterialGrade, number> = {
-  f1: 1,
-  f2: 2,
-  f3: 3,
-  f4: 4,
-  f5: 5,
-};
-
-const materialTagTranslationKeys: Record<MaterialTag, TranslationKey> = {
-  exercise: "search.tag.exercise",
-  notes: "search.tag.notes",
-  "past-year": "search.tag.pastYear",
-  "trial-paper": "search.tag.trialPaper",
-};
-
 export function getMaterialGradeLabel(grade: MaterialGrade) {
   return materialGradeLabels[grade];
 }

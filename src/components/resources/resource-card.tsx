@@ -14,6 +14,7 @@ export function ResourceCard({ material }: { material: StudyMaterial }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -68,10 +69,16 @@ export function ResourceCard({ material }: { material: StudyMaterial }) {
   async function toggleSave() {
     if (!isSupabaseConfigured || isSaving) return;
 
+    setSaveError("");
+
     const { data: userData } = await supabase.auth.getUser();
     const user = userData.user;
 
-    if (!user) return;
+    if (!user) {
+      setIsLoggedIn(false);
+      setSaveError("Please log in to save resources.");
+      return;
+    }
 
     setIsSaving(true);
 
@@ -82,7 +89,9 @@ export function ResourceCard({ material }: { material: StudyMaterial }) {
         .eq("user_id", user.id)
         .eq("material_id", material.id);
 
-      if (!error) {
+      if (error) {
+        setSaveError(error.message);
+      } else {
         setIsSaved(false);
       }
     } else {
@@ -91,9 +100,13 @@ export function ResourceCard({ material }: { material: StudyMaterial }) {
         material_id: material.id,
       };
 
-      const { error } = await supabase.from("material_bookmarks").insert(bookmark as never);
+      const { error } = await supabase
+        .from("material_bookmarks")
+        .upsert(bookmark as never, { onConflict: "user_id,material_id", ignoreDuplicates: true });
 
-      if (!error) {
+      if (error) {
+        setSaveError(error.message);
+      } else {
         setIsSaved(true);
       }
     }
@@ -149,6 +162,7 @@ export function ResourceCard({ material }: { material: StudyMaterial }) {
           </Button>
         </div>
       </div>
+      {saveError ? <p className="mt-3 text-sm text-rose-600">{saveError}</p> : null}
     </Card>
   );
 }

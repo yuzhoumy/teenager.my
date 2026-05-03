@@ -42,6 +42,23 @@ create table if not exists public.material_bookmarks (
   unique (user_id, material_id)
 );
 
+alter table public.material_bookmarks enable row level security;
+
+drop policy if exists "Allow users to select own material bookmarks" on public.material_bookmarks;
+create policy "Allow users to select own material bookmarks" on public.material_bookmarks
+  for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "Allow users to insert own material bookmarks" on public.material_bookmarks;
+create policy "Allow users to insert own material bookmarks" on public.material_bookmarks
+  for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Allow users to delete own material bookmarks" on public.material_bookmarks;
+create policy "Allow users to delete own material bookmarks" on public.material_bookmarks
+  for delete
+  using (auth.uid() = user_id);
+
 create table if not exists public.pending_materials (
   id uuid primary key default gen_random_uuid(),
   title text not null,

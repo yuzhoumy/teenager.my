@@ -141,7 +141,7 @@ export default function ProfilePage() {
     }
 
     void loadProfile();
-  }, [router, t]);
+  }, [router]);
 
   async function onSaveProfile(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
