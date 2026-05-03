@@ -1,10 +1,11 @@
 "use client";
 
+import { useEffect, useState, type FormEvent } from "react";
 import { groupMaterialsBySubject, getMaterialGradeLabel, getMaterialTagLabel } from "@/lib/materials";
 import { ResourceCard } from "@/components/resources/resource-card";
 import { ResourceFiltersBar } from "@/components/resources/resource-filters";
 import { UploadResourceModal } from "@/components/resources/upload-resource-modal";
-import { useMaterialsQuery } from "@/components/resources/use-material-filters";
+import { useMaterialFilters, useMaterialsQuery } from "@/components/resources/use-material-filters";
 
 function ActiveFiltersSummary({ filters }: { filters: ReturnType<typeof useMaterialsQuery>["filters"] }) {
   const tokens = [
@@ -34,6 +35,17 @@ function ActiveFiltersSummary({ filters }: { filters: ReturnType<typeof useMater
 
 export function ResourcesPageClient() {
   const { filters, facets, materials, loading, error } = useMaterialsQuery();
+  const { filters: mobileFilters, setSearchText } = useMaterialFilters();
+  const [searchInput, setSearchInput] = useState(mobileFilters.query);
+
+  useEffect(() => {
+    setSearchInput(mobileFilters.query);
+  }, [mobileFilters.query]);
+
+  function handleMobileSearchSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSearchText(searchInput);
+  }
 
   if (error && !facets) {
     return (
@@ -81,6 +93,30 @@ export function ResourcesPageClient() {
         <ResourceFiltersBar facets={facets} />
 
         <div className="space-y-6">
+          <form onSubmit={handleMobileSearchSubmit} className="lg:hidden">
+            <div className="rounded-[30px] border border-border bg-surface p-5 shadow-[0_4px_24px_var(--shadow)]">
+              <label htmlFor="mobile-material-search" className="sr-only">
+                Search materials
+              </label>
+              <div className="flex flex-wrap items-center gap-3">
+                <input
+                  id="mobile-material-search"
+                  type="search"
+                  value={searchInput}
+                  onChange={(event) => setSearchInput(event.target.value)}
+                  placeholder="Search titles or tags like Form 5, Trial Paper"
+                  className="min-w-0 flex-1 rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+                />
+                <button
+                  type="submit"
+                  className="rounded-xl border border-transparent bg-surface-muted px-4 py-3 text-sm font-medium text-foreground shadow-[0_0_0_1px_var(--ring)] hover:bg-[#dfdccf]"
+                >
+                  Search
+                </button>
+              </div>
+            </div>
+          </form>
+
           <div className="rounded-[30px] border border-border bg-surface p-5 shadow-[0_4px_24px_var(--shadow)]">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>

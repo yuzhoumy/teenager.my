@@ -30,6 +30,7 @@ export function useMaterialFilters() {
         subjects: searchParams.getAll("subjects"),
         tags: searchParams.getAll("tags"),
         origins: searchParams.getAll("origins"),
+        query: searchParams.get("query") ?? undefined,
       }),
     [searchParams],
   );
@@ -51,6 +52,10 @@ export function useMaterialFilters() {
 
     for (const origin of next.origins) {
       params.append("origins", origin);
+    }
+
+    if (next.query.trim().length > 0) {
+      params.set("query", next.query);
     }
 
     const query = params.toString();
@@ -75,12 +80,16 @@ export function useMaterialFilters() {
     toggleOrigin(origin: string) {
       replaceFilters({ ...filters, origins: toggleValue(filters.origins, origin) });
     },
+    setSearchText(nextSearch: string) {
+      replaceFilters({ ...filters, query: nextSearch });
+    },
     clearAll() {
       replaceFilters({
         grade: null,
         subjects: [],
         tags: [],
         origins: [],
+        query: "",
       });
     },
   };
@@ -97,6 +106,7 @@ export function useMaterialsQuery() {
     filters.subjects.join("|"),
     filters.tags.join("|"),
     filters.origins.join("|"),
+    filters.query,
   ].join("::");
 
   useEffect(() => {

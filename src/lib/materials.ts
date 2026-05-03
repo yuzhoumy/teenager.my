@@ -9,6 +9,8 @@ export type MaterialFilters = {
   subjects: string[];
   tags: MaterialTag[];
   origins: string[];
+  query: string;
+  queryTokens: string[];
 };
 
 export type MaterialFacetOption = {
@@ -64,6 +66,60 @@ function normalizeSearchParam(value: SearchParamValue) {
   );
 }
 
+function normalizeSearchText(value: SearchParamValue) {
+  if (Array.isArray(value)) {
+    return value.filter(Boolean).join(" ").trim();
+  }
+
+  return value?.trim() ?? "";
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function deduceFiltersFromSearch(searchText: string) {
+  let normalized = searchText.toLowerCase();
+  let grade: MaterialGrade | null = null;
+  const tags: MaterialTag[] = [];
+
+  const phraseMatchers = [
+    ...materialGrades.flatMap((gradeId) => [
+      { phrase: materialGradeLabels[gradeId].toLowerCase(), value: gradeId, type: "grade" as const },
+      { phrase: gradeId.toLowerCase(), value: gradeId, type: "grade" as const },
+    ]),
+    ...materialTags.flatMap((tagId) => [
+      { phrase: materialTagLabels[tagId].toLowerCase(), value: tagId, type: "tag" as const },
+      { phrase: tagId.toLowerCase(), value: tagId, type: "tag" as const },
+    ]),
+  ].sort((a, b) => b.phrase.length - a.phrase.length);
+
+  for (const matcher of phraseMatchers) {
+    const pattern = new RegExp(`\\b${escapeRegExp(matcher.phrase)}\\b`, "g");
+    if (!pattern.test(normalized)) {
+      continue;
+    }
+
+    normalized = normalized.replace(pattern, " ");
+
+    if (matcher.type === "grade") {
+      grade = matcher.value as MaterialGrade;
+    } else {
+      const tagValue = matcher.value as MaterialTag;
+      if (!tags.includes(tagValue)) {
+        tags.push(tagValue);
+      }
+    }
+  }
+
+  const queryTokens = normalized
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter(Boolean);
+
+  return { grade, tags, queryTokens };
+}
+
 export function parseMaterialFilters(searchParams: Record<string, SearchParamValue>): MaterialFilters {
   const gradeValue = normalizeSearchParam(searchParams.grade)[0] ?? null;
   const subjects = normalizeSearchParam(searchParams.subjects);
@@ -71,12 +127,18 @@ export function parseMaterialFilters(searchParams: Record<string, SearchParamVal
     materialTags.includes(tag as MaterialTag),
   );
   const origins = normalizeSearchParam(searchParams.origins);
+  const rawSearch = normalizeSearchText(searchParams.query);
+  const deduced = rawSearch ? deduceFiltersFromSearch(rawSearch) : { grade: null, tags: [], queryTokens: [] };
 
   return {
-    grade: materialGrades.includes(gradeValue as MaterialGrade) ? (gradeValue as MaterialGrade) : null,
+    grade: materialGrades.includes(gradeValue as MaterialGrade)
+      ? (gradeValue as MaterialGrade)
+      : deduced.grade,
     subjects,
-    tags,
+    tags: [...new Set([...tags, ...deduced.tags])],
     origins,
+    query: rawSearch,
+    queryTokens: deduced.queryTokens,
   };
 }
 
@@ -96,7 +158,11 @@ export async function getMaterials(filters: MaterialFilters) {
   }
 
   if (filters.tags.length > 0) {
-    query = query.overlaps("category_tags", filters.tags);
+    query = query.contains("category_tags", filters.tags);
+  }
+
+  for (const token of filters.queryTokens) {
+    query = query.ilike("title", `%${token}%`);
   }
 
   if (filters.origins.length > 0) {

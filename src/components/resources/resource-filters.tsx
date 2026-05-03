@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import type { MaterialGrade, MaterialTag } from "@/types/database";
 import { getMaterialGradeLabel, getMaterialTagLabel, type MaterialFacets } from "@/lib/materials";
 import { useMaterialFilters } from "@/components/resources/use-material-filters";
@@ -26,8 +26,18 @@ function FilterSection({
 }
 
 export function ResourceFiltersBar({ facets }: Props) {
-  const { filters, setGrade, toggleSubject, toggleTag, toggleOrigin, clearAll } = useMaterialFilters();
+  const { filters, setGrade, toggleSubject, toggleTag, toggleOrigin, setSearchText, clearAll } = useMaterialFilters();
+  const [searchInput, setSearchInput] = useState(filters.query);
   const [mobileOpen, setMobileOpen] = useState(true);
+
+  useEffect(() => {
+    setSearchInput(filters.query);
+  }, [filters.query]);
+
+  function handleSearchSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSearchText(searchInput);
+  }
 
   return (
     <aside className="rounded-[30px] border border-border bg-surface p-5 shadow-[0_4px_24px_var(--shadow)] lg:sticky lg:top-28">
@@ -57,6 +67,27 @@ export function ResourceFiltersBar({ facets }: Props) {
       </div>
 
       <div className={`${mobileOpen ? "space-y-4" : "hidden"} lg:block lg:space-y-4`}>
+        <FilterSection title="Search">
+          <form onSubmit={handleSearchSubmit} className="space-y-2">
+            <label htmlFor="material-search" className="sr-only">
+              Search materials
+            </label>
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                id="material-search"
+                type="search"
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                placeholder="Search titles or type tags like Form 5, Trial Paper"
+                className="min-w-0 flex-1 rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+              />
+              <Button type="submit" variant="secondary" size="sm" className="whitespace-nowrap">
+                Search
+              </Button>
+            </div>
+          </form>
+        </FilterSection>
+
         <FilterSection title="Grade">
           <div className="space-y-2">
             <label className="flex items-center gap-3 text-sm text-text-muted">
