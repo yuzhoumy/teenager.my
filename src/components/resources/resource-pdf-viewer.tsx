@@ -9,10 +9,11 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/build/pdf.worker.min.mjs",
-  import.meta.url,
-).toString();
+// Import react-pdf CSS for text layer support
+import "react-pdf/dist/Page/TextLayer.css";
+
+// Use CDN for PDF.js worker to avoid issues with import.meta.url in Next.js
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@5.4.296/build/pdf.worker.min.mjs`;
 
 type DragState = {
   pageNumber: number;
@@ -128,7 +129,7 @@ export function PdfAnnotationViewer({
         }
       } catch (loadError) {
         if (!cancelled) {
-          setError(loadError instanceof Error ? loadError.message : "Unable to load fork data.");
+          setError(loadError instanceof Error ? `Failed to load fork data: ${loadError.message}` : "Failed to load fork data.");
           setLoading(false);
         }
       }
@@ -206,7 +207,7 @@ export function PdfAnnotationViewer({
     try {
       await ensureFork();
     } catch (forkError) {
-      setError(forkError instanceof Error ? forkError.message : "Unable to create fork.");
+      setError(forkError instanceof Error ? `Failed to fork PDF: ${forkError.message}` : "Failed to create PDF fork.");
     }
   }
 
@@ -249,7 +250,7 @@ export function PdfAnnotationViewer({
       setComment("");
       setQuote("");
     } catch (annotationError) {
-      setError(annotationError instanceof Error ? annotationError.message : "Unable to save annotation.");
+      setError(annotationError instanceof Error ? `Failed to save annotation: ${annotationError.message}` : "Failed to save annotation.");
     } finally {
       setSavingAnnotation(false);
     }
@@ -340,7 +341,7 @@ export function PdfAnnotationViewer({
               </div>
             }
             onLoadSuccess={({ numPages: loadedPages }) => setNumPages(loadedPages)}
-            onLoadError={(pdfError) => setError(pdfError.message)}
+            onLoadError={(pdfError) => setError(`Failed to load PDF: ${pdfError.message}`)}
           >
             {Array.from({ length: numPages }, (_, index) => {
               const pageNumber = index + 1;
