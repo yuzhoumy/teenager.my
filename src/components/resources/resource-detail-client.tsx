@@ -49,7 +49,7 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
         </Link>
 
         <Card className="overflow-hidden rounded-[32px] border-border-strong bg-surface-strong p-0">
-          <div className="border-b border-border bg-[linear-gradient(135deg,rgba(20,20,19,0.04),transparent_45%),linear-gradient(180deg,#fffdf8,#faf8f1)] px-6 py-6 sm:px-8">
+          <div className="border-b border-border bg-gradient-to-br from-surface via-background to-surface-muted px-6 py-6 sm:px-8">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
               <div className="max-w-4xl">
                 <p className="text-sm uppercase tracking-[0.18em] text-text-soft">README-style resource</p>

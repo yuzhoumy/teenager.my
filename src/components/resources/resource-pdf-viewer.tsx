@@ -314,9 +314,9 @@ export function PdfAnnotationViewer({
   }
 
   return (
-    <div className="grid h-full min-h-0 gap-0 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <div className="min-h-0 overflow-auto bg-[#191c22] px-4 py-5">
-        <div className="mx-auto w-full max-w-4xl space-y-5">
+    <div className="flex h-full min-h-0 flex-col gap-0 lg:grid lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="min-h-0 overflow-auto bg-[#191c22] px-4 py-5 lg:min-w-0">
+        <div className="mx-auto w-full space-y-5">
           <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/75">
             <span>Draw a box anywhere on the PDF to create an annotation layer.</span>
             <Button
@@ -360,7 +360,8 @@ export function PdfAnnotationViewer({
                   >
                     <Page
                       pageNumber={pageNumber}
-                      width={960}
+                      width={undefined}
+                      scale={1.5}
                       renderAnnotationLayer={false}
                       renderTextLayer={true}
                     />
@@ -397,7 +398,7 @@ export function PdfAnnotationViewer({
         </div>
       </div>
 
-      <div className="border-t border-white/10 bg-[#101319] px-4 py-5 text-white lg:border-l lg:border-t-0">
+      <div className="border-t border-white/10 bg-[#101319] px-4 py-5 text-white lg:border-l lg:border-t-0 lg:max-h-screen lg:overflow-y-auto">
         <div className="space-y-4">
           <div>
             <p className="text-xs uppercase tracking-[0.18em] text-white/45">Layer Fork</p>
