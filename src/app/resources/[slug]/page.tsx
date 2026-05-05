@@ -5,7 +5,7 @@ import {
   getMaterialCoreTypeLabel,
   getMaterialSlugs,
 } from "@/lib/materials";
-import { ResourceDetailClient } from "@/components/resources/resource-detail-client";
+import { ResourceDetailClientShell } from "@/components/resources/resource-detail-client-shell";
 
 type ResourcePageProps = PageProps<"/resources/[slug]">;
 
@@ -38,5 +38,5 @@ export default async function ResourceDetailPage(props: ResourcePageProps) {
     notFound();
   }
 
-  return <ResourceDetailClient material={material} />;
+  return <ResourceDetailClientShell material={material} />;
 }

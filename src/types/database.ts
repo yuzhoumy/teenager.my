@@ -1,3 +1,5 @@
+import type { Json } from "@supabase/supabase-js";
+
 export type MaterialGrade = "f1" | "f2" | "f3" | "f4" | "f5";
 export type MaterialCoreType = "exercise" | "note";
 export type MaterialTag = "past-year" | "trial-paper";
@@ -123,6 +125,8 @@ export type Database = {
           user_id: string;
           material_id: string;
           source_url: string;
+          markdown_content: string;
+          annotation_layers: Json | null;
           created_at: string;
         };
         Insert: {
@@ -130,6 +134,8 @@ export type Database = {
           user_id: string;
           material_id: string;
           source_url: string;
+          markdown_content: string;
+          annotation_layers?: Json | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["user_forks"]["Insert"]>;

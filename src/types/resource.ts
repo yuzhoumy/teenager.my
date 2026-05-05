@@ -32,6 +32,8 @@ export type UserFork = {
   user_id: string;
   material_id: string;
   source_url: string;
+  markdown_content: string;
+  annotation_layers: Record<number, unknown[]> | null;
   created_at: string;
 };
 

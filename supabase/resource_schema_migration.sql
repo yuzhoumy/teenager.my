@@ -11,6 +11,11 @@ alter table public.pending_materials add column if not exists core_type text;
 alter table public.pending_materials add column if not exists content_markdown text;
 alter table public.pending_materials add column if not exists author_name text;
 
+alter table public.user_forks add column if not exists markdown_content text;
+alter table public.user_forks add column if not exists annotation_layers jsonb;
+update public.user_forks set markdown_content = '' where markdown_content is null;
+alter table public.user_forks alter column markdown_content set not null;
+
 -- 2. Drop the restrictive constraint
 alter table public.materials drop constraint if exists materials_category_tags_not_empty;
 alter table public.pending_materials drop constraint if exists pending_materials_category_tags_not_empty;

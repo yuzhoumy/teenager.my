@@ -67,6 +67,8 @@ create table if not exists public.user_forks (
   user_id uuid not null references auth.users(id) on delete cascade,
   material_id uuid not null references public.materials(id) on delete cascade,
   source_url text not null,
+  markdown_content text not null,
+  annotation_layers jsonb,
   created_at timestamptz not null default now(),
   unique (user_id, material_id, source_url)
 );
