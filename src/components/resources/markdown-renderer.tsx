@@ -1,6 +1,24 @@
 import type { ReactNode } from "react";
 
-function renderInlineMarkdown(text: string) {
+type PdfRenderCallback = (href: string, label: string, index: number) => ReactNode;
+
+type MarkdownRendererProps = {
+  markdown: string;
+  renderPdfLink?: PdfRenderCallback;
+};
+
+function hasBlockElement(children: ReactNode[]) {
+  return children.some((child) => {
+    if (!child || typeof child !== "object") {
+      return false;
+    }
+
+    const element = child as { type?: unknown };
+    return element.type !== undefined && typeof element.type !== "string";
+  });
+}
+
+function renderInlineMarkdown(text: string, renderPdfLink?: PdfRenderCallback) {
   const nodes: ReactNode[] = [];
   const pattern = /(\[[^\]]+\]\([^)]+\)|`[^`]+`|\*\*[^*]+\*\*)/g;
   let lastIndex = 0;
@@ -17,17 +35,26 @@ function renderInlineMarkdown(text: string) {
     if (matchedText.startsWith("[")) {
       const linkMatch = matchedText.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
       if (linkMatch) {
-        nodes.push(
-          <a
-            key={`link-${matchIndex}`}
-            href={linkMatch[2]}
-            target="_blank"
-            rel="noreferrer"
-            className="font-medium text-brand underline decoration-brand/35 underline-offset-4 hover:text-brand-soft"
-          >
-            {linkMatch[1]}
-          </a>,
-        );
+        const label = linkMatch[1];
+        const href = linkMatch[2];
+
+        if (renderPdfLink && /\.pdf($|[?#])/i.test(href)) {
+          nodes.push(renderPdfLink(href, label, matchIndex));
+        } else {
+          nodes.push(
+            <a
+              key={`link-${matchIndex}`}
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-brand underline decoration-brand/35 underline-offset-4 hover:text-brand-soft"
+            >
+              {label}
+            </a>,
+          );
+        }
+      } else {
+        nodes.push(matchedText);
       }
     } else if (matchedText.startsWith("`")) {
       nodes.push(
@@ -59,7 +86,7 @@ function renderInlineMarkdown(text: string) {
   return nodes;
 }
 
-export function MarkdownRenderer({ markdown }: { markdown: string }) {
+export function MarkdownRenderer({ markdown, renderPdfLink }: MarkdownRendererProps) {
   const lines = markdown.replace(/\r\n/g, "\n").split("\n");
   const blocks: ReactNode[] = [];
   let paragraphLines: string[] = [];
@@ -68,11 +95,18 @@ export function MarkdownRenderer({ markdown }: { markdown: string }) {
   function flushParagraph() {
     if (paragraphLines.length === 0) return;
     const content = paragraphLines.join(" ").trim();
-    blocks.push(
+    const children = renderInlineMarkdown(content, renderPdfLink);
+    const wrapper = hasBlockElement(children) ? (
+      <div key={`paragraph-${blocks.length}`} className="space-y-5">
+        {children}
+      </div>
+    ) : (
       <p key={`paragraph-${blocks.length}`} className="text-base leading-8 text-text-muted">
-        {renderInlineMarkdown(content)}
-      </p>,
+        {children}
+      </p>
     );
+
+    blocks.push(wrapper);
     paragraphLines = [];
   }
 
@@ -81,7 +115,7 @@ export function MarkdownRenderer({ markdown }: { markdown: string }) {
     blocks.push(
       <ul key={`list-${blocks.length}`} className="list-disc space-y-2 pl-6 text-base leading-8 text-text-muted">
         {listItems.map((item, index) => (
-          <li key={`item-${index}`}>{renderInlineMarkdown(item)}</li>
+          <li key={`item-${index}`}>{renderInlineMarkdown(item, renderPdfLink)}</li>
         ))}
       </ul>,
     );
@@ -112,11 +146,11 @@ export function MarkdownRenderer({ markdown }: { markdown: string }) {
             level === 1
               ? "text-4xl text-foreground"
               : level === 2
-                ? "text-3xl text-foreground"
-                : "text-2xl text-foreground"
+              ? "text-3xl text-foreground"
+              : "text-2xl text-foreground"
           }
         >
-          {renderInlineMarkdown(text)}
+          {renderInlineMarkdown(text, renderPdfLink)}
         </Tag>,
       );
       continue;
