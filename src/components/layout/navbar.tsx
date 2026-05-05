@@ -4,7 +4,7 @@ import Link from "next/link";
 import { BookOpen, Moon, Sun, UserCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 const futureModules = [
   "Study Room",
@@ -45,8 +45,8 @@ export function Navbar() {
   useEffect(() => {
     if (!isSupabaseConfigured) return;
 
-    void supabase.auth.getUser().then(({ data }) => {
-      setIsLoggedIn(Boolean(data.user));
+    void getSupabaseUser().then((user) => {
+      setIsLoggedIn(Boolean(user));
     });
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {

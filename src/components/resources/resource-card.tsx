@@ -9,7 +9,7 @@ import {
   getMaterialHref,
   getMaterialTagLabel,
 } from "@/lib/materials";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 import type { StudyMaterial } from "@/types/resource";
 import { Badge } from "@/components/ui/badge";
@@ -28,8 +28,7 @@ export function ResourceCard({ material }: { material: StudyMaterial }) {
     let active = true;
 
     async function syncBookmarkState() {
-      const { data: userData } = await supabase.auth.getUser();
-      const user = userData.user;
+      const user = await getSupabaseUser();
 
       if (!active) return;
 
@@ -77,8 +76,7 @@ export function ResourceCard({ material }: { material: StudyMaterial }) {
 
     setSaveError("");
 
-    const { data: userData } = await supabase.auth.getUser();
-    const user = userData.user;
+    const user = await getSupabaseUser();
 
     if (!user) {
       setIsLoggedIn(false);

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
-import { ArrowLeft, BookCopy, CalendarDays, GraduationCap, MessageSquare, Tag, UserRound } from "lucide-react";
+import { ArrowLeft, CalendarDays, GraduationCap, MessageSquare, Tag, UserRound } from "lucide-react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/TextLayer.css";
 import {
@@ -238,7 +238,7 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
                         {Array.from({ length: numPages || 1 }, (_, index) => {
                           const pageNumber = index + 1;
                           return (
-                            <div key={pageNumber} ref={(node) => (pageRefs.current[index] = node)} className="mb-6 rounded-[24px] bg-[#0b1220] p-4">
+                            <div key={pageNumber} ref={(node) => { pageRefs.current[index] = node; }} className="mb-6 rounded-[24px] bg-[#0b1220] p-4">
                               <div className="mb-3 flex items-center justify-between gap-3 text-sm text-text-soft">
                                 <span>Page {pageNumber}</span>
                               </div>
@@ -257,7 +257,12 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
               </aside>
             </div>
           ) : currentTab === "fork" ? (
-            <PdfForkEditor materialId={material.id} sourceUrl={primaryPdf?.href ?? ""} initialMarkdown={material.content_markdown} />
+            <PdfForkEditor
+              materialId={material.id}
+              materialSlug={material.slug}
+              sourceUrl={primaryPdf?.href ?? ""}
+              initialMarkdown={material.content_markdown}
+            />
           ) : (
             <ResourceDiscussionThread materialId={material.id} />
           )}

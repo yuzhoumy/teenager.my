@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BookCopy, Lightbulb, Sparkles, Trophy, Upload } from "lucide-react";
 import type { Database } from "@/types/database";
 import type { ExerciseSolution, KnowledgePatch, ResourcePdfLink, StudyMaterial } from "@/types/resource";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -15,11 +15,6 @@ import { Textarea } from "@/components/ui/textarea";
 
 const bucketName = process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET ?? "resource-attachments";
 type SolutionVoteRow = Database["public"]["Tables"]["exercise_solution_votes"]["Row"];
-
-async function getCurrentUser() {
-  const { data } = await supabase.auth.getUser();
-  return data.user;
-}
 
 async function uploadResourceImage(file: File, userId: string) {
   const safeFileName = file.name.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9_.-]/g, "");
@@ -116,7 +111,7 @@ function ExerciseSidebar({
     setError("");
 
     try {
-      const user = await getCurrentUser();
+      const user = await getSupabaseUser();
       if (!user) {
         throw new Error("Please log in to submit a solution.");
       }
@@ -154,7 +149,7 @@ function ExerciseSidebar({
     setError("");
 
     try {
-      const user = await getCurrentUser();
+      const user = await getSupabaseUser();
       if (!user) {
         throw new Error("Please log in to upvote a solution.");
       }
@@ -329,7 +324,7 @@ function NoteSidebar({
     setError("");
 
     try {
-      const user = await getCurrentUser();
+      const user = await getSupabaseUser();
       if (!user) {
         throw new Error("Please log in to suggest a patch.");
       }

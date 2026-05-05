@@ -1,4 +1,10 @@
-import type { Json } from "@supabase/supabase-js";
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
 
 export type MaterialGrade = "f1" | "f2" | "f3" | "f4" | "f5";
 export type MaterialCoreType = "exercise" | "note";
@@ -119,11 +125,11 @@ export type Database = {
         };
         Update: Partial<Database["public"]["Tables"]["material_bookmarks"]["Insert"]>;
       };
-      user_forks: {
-        Row: {
-          id: string;
-          user_id: string;
-          material_id: string;
+        user_forks: {
+          Row: {
+            id: string;
+            user_id: string;
+            material_id: string;
           source_url: string;
           markdown_content: string;
           annotation_layers: Json | null;
@@ -137,10 +143,25 @@ export type Database = {
           markdown_content: string;
           annotation_layers?: Json | null;
           created_at?: string;
+          };
+          Update: Partial<Database["public"]["Tables"]["user_forks"]["Insert"]>;
         };
-        Update: Partial<Database["public"]["Tables"]["user_forks"]["Insert"]>;
-      };
-      annotations: {
+        fork_stars: {
+          Row: {
+            id: string;
+            fork_id: string;
+            user_id: string;
+            created_at: string;
+          };
+          Insert: {
+            id?: string;
+            fork_id: string;
+            user_id: string;
+            created_at?: string;
+          };
+          Update: Partial<Database["public"]["Tables"]["fork_stars"]["Insert"]>;
+        };
+        annotations: {
         Row: {
           id: string;
           fork_id: string;

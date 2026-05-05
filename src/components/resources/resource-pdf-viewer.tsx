@@ -5,7 +5,7 @@ import { Document, Page, pdfjs } from "react-pdf";
 import { BookmarkPlus, Highlighter, LoaderCircle } from "lucide-react";
 import type { AnnotationRect } from "@/types/database";
 import type { ForkAnnotation, UserFork } from "@/types/resource";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -29,11 +29,6 @@ type DraftSelection = {
   pageNumber: number;
   rect: AnnotationRect;
 };
-
-async function getCurrentUser() {
-  const { data } = await supabase.auth.getUser();
-  return data.user;
-}
 
 function normalizeRect(drag: DragState): AnnotationRect {
   const left = Math.min(drag.startX, drag.currentX);
@@ -80,7 +75,7 @@ export function PdfAnnotationViewer({
       }
 
       try {
-        const user = await getCurrentUser();
+        const user = await getSupabaseUser();
         if (!user) {
           if (!cancelled) {
             setFork(null);
@@ -151,7 +146,7 @@ export function PdfAnnotationViewer({
       return fork;
     }
 
-    const user = await getCurrentUser();
+    const user = await getSupabaseUser();
     if (!user) {
       throw new Error("Please log in to fork this PDF.");
     }
@@ -220,7 +215,7 @@ export function PdfAnnotationViewer({
     setError("");
 
     try {
-      const user = await getCurrentUser();
+      const user = await getSupabaseUser();
       if (!user) {
         throw new Error("Please log in to save annotations.");
       }

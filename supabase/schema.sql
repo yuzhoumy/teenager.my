@@ -75,15 +75,47 @@ create table if not exists public.user_forks (
 
 alter table public.user_forks enable row level security;
 
+drop policy if exists "Allow public to select forks" on public.user_forks;
 drop policy if exists "Allow users to select own forks" on public.user_forks;
-create policy "Allow users to select own forks" on public.user_forks
+create policy "Allow public to select forks" on public.user_forks
   for select
-  using (auth.uid() = user_id);
+  using (true);
 
 drop policy if exists "Allow users to insert own forks" on public.user_forks;
 create policy "Allow users to insert own forks" on public.user_forks
   for insert
   with check (auth.uid() = user_id);
+
+drop policy if exists "Allow users to update own forks" on public.user_forks;
+create policy "Allow users to update own forks" on public.user_forks
+  for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create table if not exists public.fork_stars (
+  id uuid primary key default gen_random_uuid(),
+  fork_id uuid not null references public.user_forks(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (fork_id, user_id)
+);
+
+alter table public.fork_stars enable row level security;
+
+drop policy if exists "Allow public selects on fork stars" on public.fork_stars;
+create policy "Allow public selects on fork stars" on public.fork_stars
+  for select
+  using (true);
+
+drop policy if exists "Allow users to star once" on public.fork_stars;
+create policy "Allow users to star once" on public.fork_stars
+  for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Allow users to remove own fork stars" on public.fork_stars;
+create policy "Allow users to remove own fork stars" on public.fork_stars
+  for delete
+  using (auth.uid() = user_id);
 
 create table if not exists public.annotations (
   id uuid primary key default gen_random_uuid(),
@@ -246,6 +278,8 @@ create index if not exists idx_materials_slug on public.materials (slug);
 create index if not exists idx_materials_category_tags on public.materials using gin (category_tags);
 create index if not exists idx_user_forks_material_id on public.user_forks (material_id);
 create index if not exists idx_user_forks_user_id on public.user_forks (user_id);
+create index if not exists idx_fork_stars_fork_id on public.fork_stars (fork_id);
+create index if not exists idx_fork_stars_user_id on public.fork_stars (user_id);
 create index if not exists idx_annotations_fork_id on public.annotations (fork_id);
 create index if not exists idx_exercise_solutions_material_id on public.exercise_solutions (material_id);
 create index if not exists idx_solution_votes_solution_id on public.exercise_solution_votes (solution_id);

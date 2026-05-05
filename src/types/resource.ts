@@ -37,6 +37,26 @@ export type UserFork = {
   created_at: string;
 };
 
+export type ForkStar = {
+  id: string;
+  fork_id: string;
+  user_id: string;
+  created_at: string;
+};
+
+export type ForkCardData = {
+  id: string;
+  user_id: string;
+  material_id: string;
+  source_url: string;
+  markdown_content: string;
+  annotation_layers: Record<number, unknown[]> | null;
+  created_at: string;
+  author_name: string;
+  star_count: number;
+  has_starred: boolean;
+};
+
 export type ForkAnnotation = {
   id: string;
   fork_id: string;

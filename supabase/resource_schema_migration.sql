@@ -15,6 +15,36 @@ alter table public.user_forks add column if not exists markdown_content text;
 alter table public.user_forks add column if not exists annotation_layers jsonb;
 update public.user_forks set markdown_content = '' where markdown_content is null;
 alter table public.user_forks alter column markdown_content set not null;
+drop policy if exists "Allow public to select forks" on public.user_forks;
+drop policy if exists "Allow users to select own forks" on public.user_forks;
+create policy "Allow public to select forks" on public.user_forks
+  for select
+  using (true);
+drop policy if exists "Allow users to update own forks" on public.user_forks;
+create policy "Allow users to update own forks" on public.user_forks
+  for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+create table if not exists public.fork_stars (
+  id uuid primary key default gen_random_uuid(),
+  fork_id uuid not null references public.user_forks(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (fork_id, user_id)
+);
+alter table public.fork_stars enable row level security;
+drop policy if exists "Allow public selects on fork stars" on public.fork_stars;
+create policy "Allow public selects on fork stars" on public.fork_stars
+  for select
+  using (true);
+drop policy if exists "Allow users to star once" on public.fork_stars;
+create policy "Allow users to star once" on public.fork_stars
+  for insert
+  with check (auth.uid() = user_id);
+drop policy if exists "Allow users to remove own fork stars" on public.fork_stars;
+create policy "Allow users to remove own fork stars" on public.fork_stars
+  for delete
+  using (auth.uid() = user_id);
 
 -- 2. Drop the restrictive constraint
 alter table public.materials drop constraint if exists materials_category_tags_not_empty;

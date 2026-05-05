@@ -1,24 +1,117 @@
-import type { ReactNode } from "react";
+import type { FormEvent, ReactNode } from "react";
 
-type PdfRenderCallback = (href: string, label: string, index: number) => ReactNode;
+type AttachmentRenderCallback = (href: string, label: string, index: number) => ReactNode;
 
 type MarkdownRendererProps = {
   markdown: string;
-  renderPdfLink?: PdfRenderCallback;
+  editable?: boolean;
+  onMarkdownChange?: (nextMarkdown: string) => void;
+  renderPdfLink?: AttachmentRenderCallback;
+  renderImageLink?: AttachmentRenderCallback;
 };
 
+type ParsedBlock =
+  | { kind: "heading"; level: 1 | 2 | 3; text: string }
+  | { kind: "paragraph"; text: string }
+  | { kind: "list"; items: string[] };
+
 function hasBlockElement(children: ReactNode[]) {
+  const blockTags = new Set(["div", "p", "h1", "h2", "h3", "ul", "ol", "li", "figure", "section", "article"]);
+
   return children.some((child) => {
     if (!child || typeof child !== "object") {
       return false;
     }
 
     const element = child as { type?: unknown };
-    return element.type !== undefined && typeof element.type !== "string";
+    if (typeof element.type === "string") {
+      return blockTags.has(element.type);
+    }
+
+    return element.type !== undefined;
   });
 }
 
-function renderInlineMarkdown(text: string, renderPdfLink?: PdfRenderCallback) {
+function isImageLink(url: string) {
+  return /\.(png|jpe?g|gif|webp|svg|avif)($|[?#])/i.test(url);
+}
+
+function parseBlocks(markdown: string) {
+  const lines = markdown.replace(/\r\n/g, "\n").split("\n");
+  const blocks: ParsedBlock[] = [];
+  let paragraphLines: string[] = [];
+  let listItems: string[] = [];
+
+  function flushParagraph() {
+    if (paragraphLines.length === 0) return;
+    blocks.push({ kind: "paragraph", text: paragraphLines.join(" ").trim() });
+    paragraphLines = [];
+  }
+
+  function flushList() {
+    if (listItems.length === 0) return;
+    blocks.push({ kind: "list", items: [...listItems] });
+    listItems = [];
+  }
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      flushParagraph();
+      flushList();
+      continue;
+    }
+
+    const headingMatch = trimmed.match(/^(#{1,3})\s+(.*)$/);
+    if (headingMatch) {
+      flushParagraph();
+      flushList();
+      blocks.push({
+        kind: "heading",
+        level: headingMatch[1].length as 1 | 2 | 3,
+        text: headingMatch[2],
+      });
+      continue;
+    }
+
+    const listMatch = trimmed.match(/^[-*]\s+(.*)$/);
+    if (listMatch) {
+      flushParagraph();
+      listItems.push(listMatch[1]);
+      continue;
+    }
+
+    paragraphLines.push(trimmed);
+  }
+
+  flushParagraph();
+  flushList();
+
+  return blocks;
+}
+
+function stringifyBlocks(blocks: ParsedBlock[]) {
+  return blocks
+    .map((block) => {
+      if (block.kind === "heading") {
+        return `${"#".repeat(block.level)} ${block.text}`.trimEnd();
+      }
+
+      if (block.kind === "paragraph") {
+        return block.text;
+      }
+
+      return block.items.map((item) => `- ${item}`.trimEnd()).join("\n");
+    })
+    .join("\n\n");
+}
+
+function renderInlineMarkdown(
+  text: string,
+  renderPdfLink?: AttachmentRenderCallback,
+  renderImageLink?: AttachmentRenderCallback,
+) {
   const nodes: ReactNode[] = [];
   const pattern = /(\[[^\]]+\]\([^)]+\)|`[^`]+`|\*\*[^*]+\*\*)/g;
   let lastIndex = 0;
@@ -40,6 +133,8 @@ function renderInlineMarkdown(text: string, renderPdfLink?: PdfRenderCallback) {
 
         if (renderPdfLink && /\.pdf($|[?#])/i.test(href)) {
           nodes.push(renderPdfLink(href, label, matchIndex));
+        } else if (renderImageLink && isImageLink(href)) {
+          nodes.push(renderImageLink(href, label, matchIndex));
         } else {
           nodes.push(
             <a
@@ -86,88 +181,151 @@ function renderInlineMarkdown(text: string, renderPdfLink?: PdfRenderCallback) {
   return nodes;
 }
 
-export function MarkdownRenderer({ markdown, renderPdfLink }: MarkdownRendererProps) {
-  const lines = markdown.replace(/\r\n/g, "\n").split("\n");
-  const blocks: ReactNode[] = [];
-  let paragraphLines: string[] = [];
-  let listItems: string[] = [];
+function isEditableText(children: ReactNode[]) {
+  return !hasBlockElement(children);
+}
 
-  function flushParagraph() {
-    if (paragraphLines.length === 0) return;
-    const content = paragraphLines.join(" ").trim();
-    const children = renderInlineMarkdown(content, renderPdfLink);
-    const wrapper = hasBlockElement(children) ? (
-      <div key={`paragraph-${blocks.length}`} className="space-y-5">
-        {children}
-      </div>
-    ) : (
-      <p key={`paragraph-${blocks.length}`} className="text-base leading-8 text-text-muted">
-        {children}
-      </p>
-    );
+export function MarkdownRenderer({
+  markdown,
+  editable = false,
+  onMarkdownChange,
+  renderPdfLink,
+  renderImageLink,
+}: MarkdownRendererProps) {
+  const blocks = parseBlocks(markdown);
 
-    blocks.push(wrapper);
-    paragraphLines = [];
-  }
-
-  function flushList() {
-    if (listItems.length === 0) return;
-    blocks.push(
-      <ul key={`list-${blocks.length}`} className="list-disc space-y-2 pl-6 text-base leading-8 text-text-muted">
-        {listItems.map((item, index) => (
-          <li key={`item-${index}`}>{renderInlineMarkdown(item, renderPdfLink)}</li>
-        ))}
-      </ul>,
-    );
-    listItems = [];
-  }
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-
-    if (!trimmed) {
-      flushParagraph();
-      flushList();
-      continue;
+  function updateBlock(blockIndex: number, updater: (block: ParsedBlock) => ParsedBlock) {
+    if (!onMarkdownChange) {
+      return;
     }
 
-    const headingMatch = trimmed.match(/^(#{1,3})\s+(.*)$/);
-    if (headingMatch) {
-      flushParagraph();
-      flushList();
-      const level = headingMatch[1].length;
-      const text = headingMatch[2];
-      const Tag = level === 1 ? "h1" : level === 2 ? "h2" : "h3";
+    const nextBlocks = blocks.map((block, index) => (index === blockIndex ? updater(block) : block));
+    onMarkdownChange(stringifyBlocks(nextBlocks));
+  }
 
-      blocks.push(
-        <Tag
-          key={`heading-${blocks.length}`}
-          className={
-            level === 1
-              ? "text-4xl text-foreground"
-              : level === 2
-              ? "text-3xl text-foreground"
-              : "text-2xl text-foreground"
-          }
-        >
-          {renderInlineMarkdown(text, renderPdfLink)}
-        </Tag>,
+  function renderEditableTextBlock(
+    blockIndex: number,
+    block: ParsedBlock,
+    className: string,
+    children: ReactNode[],
+  ) {
+    const editableText =
+      block.kind === "heading" || block.kind === "paragraph"
+        ? block.text
+        : "";
+
+    if (!editable || !onMarkdownChange || !isEditableText(children) || block.kind === "list") {
+      const Tag = block.kind === "heading"
+        ? (block.level === 1 ? "h1" : block.level === 2 ? "h2" : "h3")
+        : "p";
+
+      return (
+        <Tag key={`block-${blockIndex}`} className={className}>
+          {children}
+        </Tag>
       );
-      continue;
     }
 
-    const listMatch = trimmed.match(/^[-*]\s+(.*)$/);
-    if (listMatch) {
-      flushParagraph();
-      listItems.push(listMatch[1]);
-      continue;
-    }
+    const Tag = block.kind === "heading"
+      ? (block.level === 1 ? "h1" : block.level === 2 ? "h2" : "h3")
+      : "p";
 
-    paragraphLines.push(trimmed);
+    return (
+      <Tag
+        key={`block-${blockIndex}`}
+        className={`${className} rounded-xl px-2 py-1 outline-none transition hover:bg-surface-strong focus:bg-surface-strong`}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={(event: FormEvent<HTMLElement>) => {
+          const nextText = event.currentTarget.textContent ?? editableText;
+          updateBlock(blockIndex, (currentBlock) => {
+            if (currentBlock.kind === "heading") {
+              return { ...currentBlock, text: nextText };
+            }
+
+            if (currentBlock.kind === "paragraph") {
+              return { ...currentBlock, text: nextText };
+            }
+
+            return currentBlock;
+          });
+        }}
+      >
+        {children}
+      </Tag>
+    );
   }
 
-  flushParagraph();
-  flushList();
+  const renderedBlocks = blocks.map((block, blockIndex) => {
+    if (block.kind === "heading") {
+      const children = renderInlineMarkdown(block.text, renderPdfLink, renderImageLink);
+      const className =
+        block.level === 1
+          ? "text-4xl text-foreground"
+          : block.level === 2
+            ? "text-3xl text-foreground"
+            : "text-2xl text-foreground";
 
-  return <div className="markdown-content space-y-5">{blocks}</div>;
+      if (isEditableText(children)) {
+        return renderEditableTextBlock(blockIndex, block, className, children);
+      }
+
+      return (
+        <div key={`block-${blockIndex}`} className="space-y-5">
+          {children}
+        </div>
+      );
+    }
+
+    if (block.kind === "paragraph") {
+      const children = renderInlineMarkdown(block.text, renderPdfLink, renderImageLink);
+      if (isEditableText(children)) {
+        return renderEditableTextBlock(blockIndex, block, "text-base leading-8 text-text-muted", children);
+      }
+
+      return (
+        <div key={`block-${blockIndex}`} className="space-y-5">
+          {children}
+        </div>
+      );
+    }
+
+    return (
+      <ul key={`block-${blockIndex}`} className="list-disc space-y-2 pl-6 text-base leading-8 text-text-muted">
+        {block.items.map((item, itemIndex) => {
+          const children = renderInlineMarkdown(item, renderPdfLink, renderImageLink);
+
+          if (!editable || !onMarkdownChange || !isEditableText(children)) {
+            return <li key={`item-${itemIndex}`}>{children}</li>;
+          }
+
+          return (
+            <li
+              key={`item-${itemIndex}`}
+              className="rounded-xl px-2 py-1 outline-none transition hover:bg-surface-strong focus:bg-surface-strong"
+              contentEditable
+              suppressContentEditableWarning
+              onInput={(event: FormEvent<HTMLLIElement>) => {
+                const nextText = event.currentTarget.textContent ?? item;
+                updateBlock(blockIndex, (currentBlock) => {
+                  if (currentBlock.kind !== "list") {
+                    return currentBlock;
+                  }
+
+                  const nextItems = currentBlock.items.map((currentItem, currentIndex) =>
+                    currentIndex === itemIndex ? nextText : currentItem,
+                  );
+                  return { ...currentBlock, items: nextItems };
+                });
+              }}
+            >
+              {children}
+            </li>
+          );
+        })}
+      </ul>
+    );
+  });
+
+  return <div className="markdown-content space-y-5">{renderedBlocks}</div>;
 }

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { BookOpen, Home, Layers2, Moon, Sun, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 export function MobileBottomNav() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -37,8 +37,8 @@ export function MobileBottomNav() {
   useEffect(() => {
     if (!isSupabaseConfigured) return;
 
-    void supabase.auth.getUser().then(({ data }) => {
-      setIsLoggedIn(Boolean(data.user));
+    void getSupabaseUser().then((user) => {
+      setIsLoggedIn(Boolean(user));
     });
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
