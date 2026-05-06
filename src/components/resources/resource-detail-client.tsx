@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, CalendarDays, GraduationCap, MessageSquare, Tag, UserRound } from "lucide-react";
 import {
@@ -9,7 +9,8 @@ import {
   getMaterialGradeLabel,
   getMaterialTagLabel,
 } from "@/lib/materials";
-import type { ResourcePdfLink, StudyMaterial } from "@/types/resource";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import type { PinnedFork, ResourcePdfLink, StudyMaterial, UserFork } from "@/types/resource";
 import { ResourceDiscussionThread } from "@/components/resources/resource-discussion-thread";
 import { ResourceSidebar } from "@/components/resources/resource-sidebar";
 import { PdfForkEditor } from "@/components/resources/resource-pdf-fork-editor";
@@ -42,9 +43,102 @@ function extractPdfLinks(markdown: string) {
 
 export function ResourceDetailClient({ material }: { material: StudyMaterial }) {
   const [currentTab, setCurrentTab] = useState<TabKey>("resource");
+  const [pinnedForks, setPinnedForks] = useState<PinnedFork[]>([]);
+  const [loadingPinnedForks, setLoadingPinnedForks] = useState(false);
+  const [pinnedForksError, setPinnedForksError] = useState("");
 
   const pdfLinks = useMemo(() => extractPdfLinks(material.content_markdown), [material.content_markdown]);
   const primaryPdf = pdfLinks[0] ?? null;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPinnedForks() {
+      if (!isSupabaseConfigured) {
+        return;
+      }
+
+      setLoadingPinnedForks(true);
+      setPinnedForksError("");
+
+      try {
+        const { data: forkRows, error: forkError } = await supabase
+          .from("user_forks")
+          .select("*")
+          .eq("material_id", material.id)
+          .eq("is_pinned", true)
+          .order("pinned_order", { ascending: true })
+          .order("created_at", { ascending: false });
+
+        if (forkError) {
+          throw forkError;
+        }
+
+        const forks = (forkRows ?? []) as UserFork[];
+        if (forks.length === 0) {
+          if (!cancelled) {
+            setPinnedForks([]);
+          }
+          return;
+        }
+
+        const userIds = Array.from(new Set(forks.map((fork) => fork.user_id)));
+        const { data: profileRows, error: profileError } = await supabase
+          .from("profiles")
+          .select("user_id, display_name")
+          .in("user_id", userIds);
+
+        if (profileError) {
+          throw profileError;
+        }
+
+        const profileMap = new Map(
+          ((profileRows ?? []) as Array<{ user_id: string; display_name: string }>).map((profile) => [profile.user_id, profile.display_name]),
+        );
+
+        if (!cancelled) {
+          setPinnedForks(
+            forks.map((fork) => ({
+              ...fork,
+              author_name: profileMap.get(fork.user_id) ?? "Anonymous student",
+            })),
+          );
+        }
+      } catch (loadError) {
+        if (!cancelled) {
+          setPinnedForks([]);
+          setPinnedForksError(loadError instanceof Error ? loadError.message : "Unable to load pinned forks.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingPinnedForks(false);
+        }
+      }
+    }
+
+    void loadPinnedForks();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [material.id]);
+
+  const renderEmbeddedPdfLink = (href: string, label: string, index: number, prefix: string) => (
+    <div key={`${prefix}-pdf-${index}`} className="space-y-4 rounded-[28px] border border-border bg-[#08131f] p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-foreground">{label}</p>
+          <p className="text-sm text-text-muted">PDF attachment embedded inside the resource.</p>
+        </div>
+        <Button asChild size="sm" variant="outline">
+          <a href={href} target="_blank" rel="noreferrer" download>
+            Download
+          </a>
+        </Button>
+      </div>
+      <EmbeddedPdfViewer file={href} />
+    </div>
+  );
 
   return (
     <section className="space-y-6">
@@ -133,29 +227,51 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
                   <div className="prose-reset markdown-readme">
                     <MarkdownRenderer
                       markdown={material.content_markdown}
-                      renderPdfLink={(href, label, index) => (
-                        <div key={`resource-pdf-${index}`} className="space-y-4 rounded-[28px] border border-border bg-[#08131f] p-5">
-                          <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-semibold text-foreground">{label}</p>
-                              <p className="text-sm text-text-muted">PDF attachment embedded inside the resource.</p>
-                            </div>
-                            <Button asChild size="sm" variant="outline">
-                              <a href={href} target="_blank" rel="noreferrer" download>
-                                Download
-                              </a>
-                            </Button>
-                          </div>
-                          <EmbeddedPdfViewer file={href} />
-                        </div>
-                      )}
+                      renderPdfLink={(href, label, index) => renderEmbeddedPdfLink(href, label, index, "resource")}
                     />
                   </div>
+
+                  {loadingPinnedForks ? (
+                    <div className="mt-8 rounded-[24px] border border-border bg-surface p-5 text-sm text-text-muted">
+                      Loading pinned forks...
+                    </div>
+                  ) : null}
+
+                  {pinnedForksError ? (
+                    <div className="mt-8 rounded-[24px] border border-rose-400/30 bg-rose-400/10 p-5 text-sm text-rose-200">
+                      {pinnedForksError}
+                    </div>
+                  ) : null}
+
+                  {pinnedForks.map((fork, index) => (
+                    <section
+                      key={fork.id}
+                      id={`pinned-fork-${fork.id}`}
+                      className="mt-8 rounded-[28px] border border-border bg-background p-6 scroll-mt-24"
+                    >
+                      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Pinned fork</p>
+                          <h2 className="mt-2 text-3xl text-foreground">
+                            {fork.pinned_title?.trim() || `Pinned fork ${index + 1}`}
+                          </h2>
+                          <p className="mt-2 text-sm text-text-muted">
+                            By {fork.author_name}
+                          </p>
+                        </div>
+                      </div>
+
+                      <MarkdownRenderer
+                        markdown={fork.markdown_content}
+                        renderPdfLink={(href, label, pdfIndex) => renderEmbeddedPdfLink(href, label, pdfIndex, `pinned-${fork.id}`)}
+                      />
+                    </section>
+                  ))}
                 </div>
               </article>
 
               <aside className="bg-[#fbfaf5] px-6 py-6 lg:px-6">
-                <ResourceSidebar material={material} pdfLinks={pdfLinks} />
+                <ResourceSidebar material={material} pinnedForks={pinnedForks} />
               </aside>
             </div>
           ) : currentTab === "fork" ? (

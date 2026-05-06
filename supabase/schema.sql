@@ -76,6 +76,9 @@ create table if not exists public.user_forks (
   source_url text not null,
   markdown_content text not null,
   annotation_layers jsonb,
+  is_pinned boolean not null default false,
+  pinned_title text,
+  pinned_order integer not null default 0,
   created_at timestamptz not null default now(),
   unique (user_id, material_id, source_url)
 );
@@ -223,6 +226,7 @@ create index if not exists idx_materials_slug on public.materials (slug);
 create index if not exists idx_materials_category_tags on public.materials using gin (category_tags);
 create index if not exists idx_user_forks_material_id on public.user_forks (material_id);
 create index if not exists idx_user_forks_user_id on public.user_forks (user_id);
+create index if not exists idx_user_forks_pinned on public.user_forks (material_id, is_pinned, pinned_order, created_at desc);
 create index if not exists idx_fork_stars_fork_id on public.fork_stars (fork_id);
 create index if not exists idx_fork_stars_user_id on public.fork_stars (user_id);
 create index if not exists idx_annotations_fork_id on public.annotations (fork_id);

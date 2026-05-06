@@ -13,6 +13,9 @@ alter table public.pending_materials add column if not exists author_name text;
 
 alter table public.user_forks add column if not exists markdown_content text;
 alter table public.user_forks add column if not exists annotation_layers jsonb;
+alter table public.user_forks add column if not exists is_pinned boolean not null default false;
+alter table public.user_forks add column if not exists pinned_title text;
+alter table public.user_forks add column if not exists pinned_order integer not null default 0;
 update public.user_forks set markdown_content = '' where markdown_content is null;
 alter table public.user_forks alter column markdown_content set not null;
 alter table public.profiles enable row level security;
@@ -50,6 +53,7 @@ drop policy if exists "Allow users to remove own fork stars" on public.fork_star
 create policy "Allow users to remove own fork stars" on public.fork_stars
   for delete
   using (auth.uid() = user_id);
+create index if not exists idx_user_forks_pinned on public.user_forks (material_id, is_pinned, pinned_order, created_at desc);
 
 -- 2. Drop the restrictive constraint
 alter table public.materials drop constraint if exists materials_category_tags_not_empty;

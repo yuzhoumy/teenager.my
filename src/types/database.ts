@@ -124,13 +124,16 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["material_bookmarks"]["Insert"]>;
       };
         user_forks: {
-          Row: {
-            id: string;
-            user_id: string;
-            material_id: string;
+        Row: {
+          id: string;
+          user_id: string;
+          material_id: string;
           source_url: string;
           markdown_content: string;
           annotation_layers: Json | null;
+          is_pinned: boolean;
+          pinned_title: string | null;
+          pinned_order: number;
           created_at: string;
         };
         Insert: {
@@ -140,6 +143,9 @@ export type Database = {
           source_url: string;
           markdown_content: string;
           annotation_layers?: Json | null;
+          is_pinned?: boolean;
+          pinned_title?: string | null;
+          pinned_order?: number;
           created_at?: string;
           };
           Update: Partial<Database["public"]["Tables"]["user_forks"]["Insert"]>;

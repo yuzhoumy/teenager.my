@@ -91,6 +91,9 @@ type ForkSummary = {
   source_url: string;
   markdown_content: string;
   annotation_layers: Record<number, unknown[]> | null;
+  is_pinned: boolean;
+  pinned_title: string | null;
+  pinned_order: number;
   created_at: string;
 };
 
@@ -705,6 +708,9 @@ export function PdfForkEditor({
           author_name: "Your fork",
           star_count: 0,
           has_starred: false,
+          is_pinned: typedFork.is_pinned,
+          pinned_title: typedFork.pinned_title,
+          pinned_order: typedFork.pinned_order,
         },
         ...current,
       ]);
@@ -755,6 +761,9 @@ export function PdfForkEditor({
           author_name: current.find((forkCard) => forkCard.id === typedFork.id)?.author_name ?? "Your fork",
           star_count: current.find((forkCard) => forkCard.id === typedFork.id)?.star_count ?? 0,
           has_starred: current.find((forkCard) => forkCard.id === typedFork.id)?.has_starred ?? false,
+          is_pinned: typedFork.is_pinned,
+          pinned_title: typedFork.pinned_title,
+          pinned_order: typedFork.pinned_order,
         };
         const rest = current.filter((existingFork) => existingFork.id !== typedFork.id);
         return [nextFork, ...rest];

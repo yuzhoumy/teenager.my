@@ -33,6 +33,9 @@ export type UserFork = {
   source_url: string;
   markdown_content: string;
   annotation_layers: Record<number, unknown[]> | null;
+  is_pinned: boolean;
+  pinned_title: string | null;
+  pinned_order: number;
   created_at: string;
 };
 
@@ -50,10 +53,17 @@ export type ForkCardData = {
   source_url: string;
   markdown_content: string;
   annotation_layers: Record<number, unknown[]> | null;
+  is_pinned: boolean;
+  pinned_title: string | null;
+  pinned_order: number;
   created_at: string;
   author_name: string;
   star_count: number;
   has_starred: boolean;
+};
+
+export type PinnedFork = UserFork & {
+  author_name: string;
 };
 
 export type ForkAnnotation = {
