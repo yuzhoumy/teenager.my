@@ -18,9 +18,7 @@ type FabricObject = {
   setCoords: () => void;
 };
 type FabricCanvas = {
-  wrapperEl?: HTMLDivElement;
   lowerCanvasEl?: HTMLCanvasElement;
-  upperCanvasEl?: HTMLCanvasElement;
   clear: () => void;
   renderAll: () => void;
   loadFromJSON: (json: { objects: unknown[] }, callback: () => void) => void;
@@ -30,7 +28,8 @@ type FabricCanvas = {
   dispose: () => void;
 };
 type FabricModule = {
-  Canvas: new (
+  StaticCanvas?: new (element: HTMLCanvasElement, options?: { backgroundColor?: string }) => FabricCanvas;
+  Canvas?: new (
     element: HTMLCanvasElement,
     options: { backgroundColor: string; isDrawingMode: boolean; selection: boolean }
   ) => FabricCanvas;
@@ -134,24 +133,20 @@ export function EmbeddedPdfViewer({
       return;
     }
 
-    const instance = new fabric.Canvas(canvasElement, {
-      backgroundColor: "transparent",
-      isDrawingMode: false,
-      selection: false,
-    });
-
-    const wrapperElement = instance.wrapperEl;
-    const lowerCanvasElement = instance.lowerCanvasEl;
-    const upperCanvasElement = instance.upperCanvasEl;
-
-    if (wrapperElement) {
-      wrapperElement.style.position = "absolute";
-      wrapperElement.style.inset = "0";
-      wrapperElement.style.width = "100%";
-      wrapperElement.style.height = "100%";
-      wrapperElement.style.zIndex = "20";
-      wrapperElement.style.pointerEvents = "none";
+    const StaticCanvasClass = fabric.StaticCanvas;
+    const CanvasClass = fabric.Canvas;
+    if (!StaticCanvasClass && !CanvasClass) {
+      return;
     }
+
+    const instance = StaticCanvasClass
+      ? new StaticCanvasClass(canvasElement, { backgroundColor: "transparent" })
+      : new CanvasClass!(canvasElement, {
+          backgroundColor: "transparent",
+          isDrawingMode: false,
+          selection: false,
+        });
+    const lowerCanvasElement = instance.lowerCanvasEl;
 
     if (lowerCanvasElement) {
       lowerCanvasElement.style.position = "absolute";
@@ -160,10 +155,7 @@ export function EmbeddedPdfViewer({
       lowerCanvasElement.style.height = "100%";
       lowerCanvasElement.style.background = "transparent";
       lowerCanvasElement.style.pointerEvents = "none";
-    }
-
-    if (upperCanvasElement) {
-      upperCanvasElement.style.display = "none";
+      lowerCanvasElement.style.zIndex = "20";
     }
 
     canvasInstanceRef.current = instance;

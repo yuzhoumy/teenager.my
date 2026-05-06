@@ -18,6 +18,7 @@ alter table public.user_forks add column if not exists pinned_title text;
 alter table public.user_forks add column if not exists pinned_order integer not null default 0;
 update public.user_forks set markdown_content = '' where markdown_content is null;
 alter table public.user_forks alter column markdown_content set not null;
+alter table public.profiles drop column if exists school;
 alter table public.profiles enable row level security;
 drop policy if exists "Allow public selects on profiles" on public.profiles;
 create policy "Allow public selects on profiles" on public.profiles

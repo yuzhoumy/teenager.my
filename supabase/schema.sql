@@ -4,12 +4,13 @@ create table if not exists public.profiles (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null unique references auth.users(id) on delete cascade,
   display_name text not null,
-  school text not null,
   form integer not null check (form between 1 and 5),
   avatar_url text,
   streak_count integer not null default 0,
   created_at timestamptz not null default now()
 );
+
+alter table public.profiles drop column if exists school;
 
 alter table public.profiles enable row level security;
 

@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { getMaterialHref } from "@/lib/materials";
-import { isValidSchool, schoolOptions } from "@/lib/schools";
 import type { Database } from "@/types/database";
 import type { StudyMaterial } from "@/types/resource";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
@@ -36,7 +35,6 @@ export default function ProfilePage() {
   const [userId, setUserId] = useState<string | null>(null);
 
   const [displayName, setDisplayName] = useState("");
-  const [school, setSchool] = useState("");
   const [formLevel, setFormLevel] = useState("1");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -77,11 +75,11 @@ export default function ProfilePage() {
 
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("display_name, school, form, avatar_url")
+        .select("display_name, form, avatar_url")
         .eq("user_id", user.id)
         .maybeSingle();
 
-      const profile = profileData as Pick<ProfileRow, "display_name" | "school" | "form" | "avatar_url"> | null;
+      const profile = profileData as Pick<ProfileRow, "display_name" | "form" | "avatar_url"> | null;
 
       if (profileError) {
         if (profileError.code !== "PGRST205") {
@@ -92,7 +90,6 @@ export default function ProfilePage() {
       }
 
       setDisplayName(profile?.display_name ?? (user.user_metadata.display_name as string | undefined) ?? "");
-      setSchool(profile?.school ?? (user.user_metadata.school as string | undefined) ?? "");
       setFormLevel(String(profile?.form ?? (user.user_metadata.form as number | undefined) ?? 1));
       setAvatarUrl(
         profile?.avatar_url ?? (user.user_metadata.avatar_url as string | undefined) ?? "",
@@ -157,10 +154,6 @@ export default function ProfilePage() {
       setError("Please log in to edit your profile.");
       return;
     }
-    if (!isValidSchool(school)) {
-      setError("Please select a school from the list.");
-      return;
-    }
 
     setSaving(true);
     const nextForm = Number(formLevel);
@@ -200,7 +193,6 @@ export default function ProfilePage() {
     const profilePayload: ProfileInsert = {
       user_id: userId,
       display_name: displayName,
-      school,
       form: nextForm,
       avatar_url: nextAvatarUrl,
     };
@@ -219,7 +211,6 @@ export default function ProfilePage() {
     const { error: metadataError } = await supabase.auth.updateUser({
       data: {
         display_name: displayName,
-        school,
         form: nextForm,
         avatar_url: nextAvatarUrl,
       },
@@ -278,18 +269,6 @@ export default function ProfilePage() {
               onChange={(e) => setDisplayName(e.target.value)}
               required
             />
-            <Input
-              list="school-options"
-              placeholder="School"
-              value={school}
-              onChange={(e) => setSchool(e.target.value)}
-              required
-            />
-            <datalist id="school-options">
-              {schoolOptions.map((option) => (
-                <option key={option} value={option} />
-              ))}
-            </datalist>
             <Select value={formLevel} onChange={(e) => setFormLevel(e.target.value)} required>
               {[1, 2, 3, 4, 5].map((value) => (
                 <option key={value} value={value}>

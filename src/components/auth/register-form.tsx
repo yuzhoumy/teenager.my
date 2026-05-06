@@ -8,11 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { getMoeEmailError } from "@/lib/validators";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
-import { isValidSchool, schoolOptions } from "@/lib/schools";
 
 export function RegisterForm() {
   const [displayName, setDisplayName] = useState("");
-  const [school, setSchool] = useState("");
   const [formLevel, setFormLevel] = useState("1");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,11 +22,6 @@ export function RegisterForm() {
     event.preventDefault();
     setError("");
     setStatus("");
-
-    if (!isValidSchool(school)) {
-      setError("Please select a school from the list.");
-      return;
-    }
 
     const emailError = getMoeEmailError(email);
     if (emailError) {
@@ -49,7 +42,6 @@ export function RegisterForm() {
       options: {
         data: {
           display_name: displayName,
-          school,
           form: Number(formLevel),
         },
       },
@@ -77,18 +69,6 @@ export function RegisterForm() {
           onChange={(e) => setDisplayName(e.target.value)}
           required
         />
-        <Input
-          list="school-options"
-          placeholder="School"
-          value={school}
-          onChange={(e) => setSchool(e.target.value)}
-          required
-        />
-        <datalist id="school-options">
-          {schoolOptions.map((option) => (
-            <option key={option} value={option} />
-          ))}
-        </datalist>
         <Select value={formLevel} onChange={(e) => setFormLevel(e.target.value)} required>
           {[1, 2, 3, 4, 5].map((value) => (
             <option key={value} value={value}>

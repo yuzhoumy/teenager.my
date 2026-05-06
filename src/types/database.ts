@@ -24,7 +24,6 @@ export type Database = {
           id: string;
           user_id: string;
           display_name: string;
-          school: string;
           form: number;
           avatar_url: string | null;
           streak_count: number;
@@ -34,7 +33,6 @@ export type Database = {
           id?: string;
           user_id: string;
           display_name: string;
-          school: string;
           form: number;
           avatar_url?: string | null;
           streak_count?: number;

@@ -47,7 +47,7 @@ export function LoginForm() {
     <Card className="mx-auto w-full max-w-md rounded-[32px]">
       <p className="mb-3 text-sm uppercase tracking-[0.18em] text-text-soft">Account</p>
       <h1 className="mb-1 text-4xl text-foreground">Welcome back</h1>
-      <p className="mb-6 text-sm text-text-muted">Login with your school account to continue.</p>
+      <p className="mb-6 text-sm text-text-muted">Login with your account to continue.</p>
       <form onSubmit={onSubmit} className="space-y-4">
         <Input
           type="email"
