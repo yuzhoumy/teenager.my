@@ -8,9 +8,28 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { usePreferences } from "@/components/preferences/preferences-provider";
 
 const bucketName = process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET ?? "resource-attachments";
+const uploadText = {
+  "auth.formPrefix": "Form {form}",
+  "resourceFilters.yearPlaceholder": "Year",
+  "search.grade": "Grade",
+  "search.origin": "Origin",
+  "search.placeholder": "Metadata search",
+  "search.submitPlaceholder": "Submit for approval",
+  "search.tagsCommaSeparated": "Tags, comma separated",
+  "search.uploadMaterial": "Upload Material",
+  "search.uploadStudyMaterial": "Upload study material",
+  "upload.close": "Close",
+  "upload.optionalNotes": "Optional notes",
+  "upload.subjectPlaceholder": "Subject",
+  "upload.titlePlaceholder": "Title",
+} as const;
+
+function t(key: keyof typeof uploadText, values?: { form?: number }) {
+  const template = uploadText[key];
+  return values?.form ? template.replace("{form}", String(values.form)) : template;
+}
 
 function parseTags(value: string): MaterialTag[] {
   return Array.from(
@@ -21,6 +40,16 @@ function parseTags(value: string): MaterialTag[] {
         .filter((tag) => tag.length > 0 && materialTags.includes(tag as MaterialTag)),
     ),
   ) as MaterialTag[];
+}
+
+function createSlug(title: string) {
+  const baseSlug = title
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return `${baseSlug || "resource"}-${Date.now()}`;
 }
 
 export function UploadResourceModal() {
@@ -36,7 +65,6 @@ export function UploadResourceModal() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const { t } = usePreferences();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -105,22 +133,19 @@ export function UploadResourceModal() {
     }
 
     const pendingMaterial = {
+      slug: createSlug(title),
       title,
-      file_url: publicUrl,
+      core_type: "exercise",
+      content_markdown: notes.trim()
+        ? `${notes.trim()}\n\n## Attachment\n[Open the attachment](${publicUrl})`
+        : `## Attachment\n[Open the attachment](${publicUrl})`,
       grade,
       subject,
       category_tags: parsedTags,
       year: yearNumber,
       origin,
+      author_name: user.user_metadata.display_name as string | undefined ?? user.email ?? "Student upload",
       uploaded_by: uploaderId,
-      metadata: {
-        notes,
-        grade,
-        subject,
-        category_tags: parsedTags,
-        year: yearNumber,
-        origin,
-      },
     } as Database["public"]["Tables"]["pending_materials"]["Insert"];
 
     const { error: insertError } = await (supabase.from("pending_materials") as any).insert(pendingMaterial);

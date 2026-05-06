@@ -1,4 +1,4 @@
-import type { FormEvent, ReactNode } from "react";
+import type { FocusEvent, ReactNode } from "react";
 
 type AttachmentRenderCallback = (href: string, label: string, index: number) => ReactNode;
 
@@ -226,18 +226,18 @@ export function MarkdownRenderer({
       );
     }
 
-    const Tag = block.kind === "heading"
-      ? (block.level === 1 ? "h1" : block.level === 2 ? "h2" : "h3")
-      : "p";
-
     return (
-      <Tag
-        key={`block-${blockIndex}`}
-        className={`${className} rounded-xl px-2 py-1 outline-none transition hover:bg-surface-strong focus:bg-surface-strong`}
-        contentEditable
-        suppressContentEditableWarning
-        onInput={(event: FormEvent<HTMLElement>) => {
-          const nextText = event.currentTarget.textContent ?? editableText;
+      <textarea
+        key={`block-${blockIndex}-${editableText}`}
+        className={`${className} block w-full resize-y rounded-xl border border-transparent bg-transparent px-2 py-1 outline-none transition hover:bg-surface-strong focus:border-border focus:bg-surface-strong focus:ring-2 focus:ring-focus`}
+        defaultValue={editableText}
+        rows={block.kind === "heading" ? 1 : Math.max(2, Math.ceil(editableText.length / 90))}
+        onBlur={(event: FocusEvent<HTMLTextAreaElement>) => {
+          const nextText = event.currentTarget.value;
+          if (nextText === editableText) {
+            return;
+          }
+
           updateBlock(blockIndex, (currentBlock) => {
             if (currentBlock.kind === "heading") {
               return { ...currentBlock, text: nextText };
@@ -250,9 +250,7 @@ export function MarkdownRenderer({
             return currentBlock;
           });
         }}
-      >
-        {children}
-      </Tag>
+      />
     );
   }
 
@@ -302,24 +300,30 @@ export function MarkdownRenderer({
           return (
             <li
               key={`item-${itemIndex}`}
-              className="rounded-xl px-2 py-1 outline-none transition hover:bg-surface-strong focus:bg-surface-strong"
-              contentEditable
-              suppressContentEditableWarning
-              onInput={(event: FormEvent<HTMLLIElement>) => {
-                const nextText = event.currentTarget.textContent ?? item;
-                updateBlock(blockIndex, (currentBlock) => {
-                  if (currentBlock.kind !== "list") {
-                    return currentBlock;
+              className="rounded-xl px-2 py-1 transition hover:bg-surface-strong"
+            >
+              <textarea
+                className="block w-full resize-y rounded-lg border border-transparent bg-transparent px-2 py-1 text-base leading-7 text-text-muted outline-none focus:border-border focus:bg-surface-strong focus:ring-2 focus:ring-focus"
+                defaultValue={item}
+                rows={1}
+                onBlur={(event: FocusEvent<HTMLTextAreaElement>) => {
+                  const nextText = event.currentTarget.value;
+                  if (nextText === item) {
+                    return;
                   }
 
-                  const nextItems = currentBlock.items.map((currentItem, currentIndex) =>
-                    currentIndex === itemIndex ? nextText : currentItem,
-                  );
-                  return { ...currentBlock, items: nextItems };
-                });
-              }}
-            >
-              {children}
+                  updateBlock(blockIndex, (currentBlock) => {
+                    if (currentBlock.kind !== "list") {
+                      return currentBlock;
+                    }
+
+                    const nextItems = currentBlock.items.map((currentItem, currentIndex) =>
+                      currentIndex === itemIndex ? nextText : currentItem,
+                    );
+                    return { ...currentBlock, items: nextItems };
+                  });
+                }}
+              />
             </li>
           );
         })}

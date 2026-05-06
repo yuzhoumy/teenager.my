@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } f
 import { useRouter } from "next/navigation";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/TextLayer.css";
-import { BookmarkPlus, Eraser, LoaderCircle, PenTool, Star, TextCursorInput, Upload, X } from "lucide-react";
+import { Eraser, Highlighter, LoaderCircle, MousePointer2, PenTool, Star, TextCursorInput, Upload, X } from "lucide-react";
 import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 import type { ForkCardData, ForkStar, UserFork } from "@/types/resource";
@@ -16,7 +16,7 @@ import { MarkdownRenderer } from "@/components/resources/markdown-renderer";
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@5.4.296/build/pdf.worker.min.mjs`;
 
 type AnnotationLayerMap = Record<number, unknown[]>;
-type Tool = "pan" | "pen" | "text";
+type Tool = "pan" | "pen" | "highlight" | "text";
 type EditorMode = "edit" | "raw";
 type CommunitySort = "latest" | "highest-star";
 type PdfPreviewState =
@@ -59,6 +59,7 @@ type FabricCanvas = {
   add: (object: FabricObject) => void;
   setActiveObject: (object: FabricObject) => void;
   getActiveObject: () => FabricObject | null;
+  getActiveObjects: () => FabricObject[];
   remove: (object: FabricObject) => void;
   discardActiveObject: () => void;
   forEachObject: (callback: (object: FabricObject) => void) => void;
@@ -102,6 +103,15 @@ type ForkSummary = {
 };
 
 const bucketName = process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET ?? "resource-attachments";
+const annotationColors = ["#111827", "#ef4444", "#f59e0b", "#22c55e", "#3b82f6", "#8b5cf6"] as const;
+
+function hexToRgba(hex: string, alpha: number) {
+  const normalizedHex = hex.replace("#", "");
+  const red = Number.parseInt(normalizedHex.slice(0, 2), 16);
+  const green = Number.parseInt(normalizedHex.slice(2, 4), 16);
+  const blue = Number.parseInt(normalizedHex.slice(4, 6), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}
 
 function isPdfLink(url: string) {
   return /\.pdf($|[?#])/i.test(url);
@@ -204,6 +214,7 @@ export function PdfForkEditor({
   const [savingLayer, setSavingLayer] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [tool, setTool] = useState<Tool>("pan");
+  const [annotationColor, setAnnotationColor] = useState<(typeof annotationColors)[number]>("#f59e0b");
   const [editorMode, setEditorMode] = useState<EditorMode>("edit");
   const [fabric, setFabric] = useState<FabricModule | null>(null);
   const [showEditor, setShowEditor] = useState(false);
@@ -247,6 +258,12 @@ export function PdfForkEditor({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const canvasSize = useRef({ width: 0, height: 0 });
   const toolRef = useRef<Tool>("pan");
+  const annotationColorRef = useRef<(typeof annotationColors)[number]>("#f59e0b");
+  const annotationLayersRef = useRef<AnnotationLayerMap>({});
+  const forkRef = useRef<UserFork | null>(null);
+  const pageNumberRef = useRef(1);
+  const autosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const restoringCanvasRef = useRef(false);
   const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(null);
   const [pageWrapperElement, setPageWrapperElement] = useState<HTMLDivElement | null>(null);
 
@@ -509,6 +526,87 @@ export function PdfForkEditor({
   }, [tool]);
 
   useEffect(() => {
+    annotationColorRef.current = annotationColor;
+  }, [annotationColor]);
+
+  useEffect(() => {
+    annotationLayersRef.current = annotationLayers;
+  }, [annotationLayers]);
+
+  useEffect(() => {
+    forkRef.current = fork;
+  }, [fork]);
+
+  useEffect(() => {
+    pageNumberRef.current = pageNumber;
+  }, [pageNumber]);
+
+  useEffect(() => {
+    return () => {
+      if (autosaveTimeoutRef.current) {
+        clearTimeout(autosaveTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const scheduleAnnotationAutosave = useCallback((nextLayers: AnnotationLayerMap) => {
+    const activeFork = forkRef.current;
+    if (!activeFork) {
+      return;
+    }
+    const activeForkId = activeFork.id;
+
+    if (autosaveTimeoutRef.current) {
+      clearTimeout(autosaveTimeoutRef.current);
+    }
+
+    autosaveTimeoutRef.current = setTimeout(() => {
+      async function saveAnnotationLayers() {
+        setSavingLayer(true);
+
+        try {
+          const { error: updateError } = await supabase
+            .from("user_forks")
+            .update({ annotation_layers: nextLayers } as never)
+            .eq("id", activeForkId);
+
+          if (updateError) {
+            throw updateError;
+          }
+        } catch (saveError) {
+          setError(saveError instanceof Error ? saveError.message : "Unable to save annotation layer.");
+        } finally {
+          setSavingLayer(false);
+        }
+      }
+
+      void saveAnnotationLayers();
+    }, 800);
+  }, []);
+
+  const captureCurrentPageLayer = useCallback((options: { autosave?: boolean } = {}) => {
+    const canvas = canvasInstanceRef.current;
+    if (!canvas || restoringCanvasRef.current) {
+      return;
+    }
+
+    const json = canvas.toJSON();
+    const objects = Array.isArray(json.objects) ? json.objects : [];
+    const currentPage = pageNumberRef.current;
+    const nextLayers = {
+      ...annotationLayersRef.current,
+      [currentPage]: objects,
+    };
+
+    annotationLayersRef.current = nextLayers;
+    setAnnotationLayers(nextLayers);
+
+    if (options.autosave) {
+      scheduleAnnotationAutosave(nextLayers);
+    }
+  }, [scheduleAnnotationAutosave]);
+
+  useEffect(() => {
     if (!fabric || !canvasElement) {
       return;
     }
@@ -559,7 +657,7 @@ export function PdfForkEditor({
       upperCanvasElement.style.width = "100%";
       upperCanvasElement.style.height = "100%";
       upperCanvasElement.style.background = "transparent";
-      upperCanvasElement.style.cursor = toolRef.current === "pen" ? "crosshair" : "text";
+      upperCanvasElement.style.cursor = toolRef.current === "pen" || toolRef.current === "highlight" ? "crosshair" : "text";
     }
 
     const handleMouseDown = (event: FabricMouseEvent) => {
@@ -571,7 +669,7 @@ export function PdfForkEditor({
       const text = new fabric.IText("New note", {
         left: Math.max(pointer.x - 60, 16),
         top: Math.max(pointer.y - 16, 16),
-        fill: "#111827",
+        fill: annotationColorRef.current,
         fontSize: 22,
         backgroundColor: "rgba(255,255,255,0.85)",
         padding: 8,
@@ -584,12 +682,25 @@ export function PdfForkEditor({
     };
 
     instance.on("mouse:down", handleMouseDown as () => void);
+    const handleCanvasChanged = () => {
+      captureCurrentPageLayer({ autosave: true });
+    };
+    instance.on("object:added", handleCanvasChanged);
+    instance.on("object:modified", handleCanvasChanged);
+    instance.on("object:removed", handleCanvasChanged);
+    instance.on("path:created", handleCanvasChanged);
+    instance.on("text:changed", handleCanvasChanged);
 
     canvasInstanceRef.current = instance;
 
     return () => {
       try {
         instance.off("mouse:down", handleMouseDown);
+        instance.off("object:added", handleCanvasChanged);
+        instance.off("object:modified", handleCanvasChanged);
+        instance.off("object:removed", handleCanvasChanged);
+        instance.off("path:created", handleCanvasChanged);
+        instance.off("text:changed", handleCanvasChanged);
         instance.dispose();
       } catch {
         // Fabric may already have detached DOM nodes during React unmount.
@@ -597,28 +708,39 @@ export function PdfForkEditor({
       canvasInstanceRef.current = null;
       setActiveSelection(false);
     };
-  }, [canvasElement, fabric]);
+  }, [canvasElement, captureCurrentPageLayer, fabric]);
 
   useEffect(() => {
     const canvas = canvasInstanceRef.current;
-    if (!canvas) {
+    if (!canvas || !fabric) {
       return;
     }
 
-    canvas.isDrawingMode = tool === "pen";
+    canvas.isDrawingMode = tool === "pen" || tool === "highlight";
     canvas.selection = tool === "pan";
     canvas.forEachObject((object) => {
       object.selectable = tool === "pan" || tool === "text";
       object.evented = tool === "pan" || tool === "text";
     });
 
+    canvas.freeDrawingBrush.width = tool === "highlight" ? 18 : 3;
+    canvas.freeDrawingBrush.color = tool === "highlight" ? hexToRgba(annotationColor, 0.35) : annotationColor;
+    canvas.freeDrawingBrush.shadow = tool === "highlight"
+      ? null
+      : new fabric.Shadow({
+          color: hexToRgba(annotationColor, 0.25),
+          blur: 8,
+          offsetX: 0,
+          offsetY: 0,
+        });
+
     if (canvas.upperCanvasEl) {
       canvas.upperCanvasEl.style.cursor =
-        tool === "pen" ? "crosshair" : tool === "text" ? "text" : "move";
+        tool === "pen" || tool === "highlight" ? "crosshair" : tool === "text" ? "text" : "move";
     }
 
     canvas.renderAll();
-  }, [canvasElement, tool]);
+  }, [annotationColor, canvasElement, fabric, tool]);
 
   useEffect(() => {
     const resize = () => {
@@ -663,17 +785,35 @@ export function PdfForkEditor({
     const canvas = canvasInstanceRef.current;
     if (!canvas) return;
 
+    restoringCanvasRef.current = true;
     canvas.clear();
-    const objects = annotationLayers[pageNumber] ?? [];
+    const objects = annotationLayersRef.current[pageNumber] ?? [];
     if (objects.length === 0) {
       canvas.renderAll();
+      restoringCanvasRef.current = false;
       return;
     }
 
     canvas.loadFromJSON({ objects }, () => {
       canvas.renderAll();
+      restoringCanvasRef.current = false;
     });
-  }, [annotationLayers, canvasElement, pageNumber]);
+  }, [canvasElement, fork?.id, pageNumber]);
+
+  const goToPdfPage = useCallback((nextPage: number) => {
+    if (numPages === 0) {
+      return;
+    }
+
+    const targetPage = Math.min(numPages, Math.max(1, nextPage));
+    if (targetPage === pageNumber) {
+      return;
+    }
+
+    captureCurrentPageLayer({ autosave: true });
+    setPageNumber(targetPage);
+    setActiveSelection(false);
+  }, [captureCurrentPageLayer, numPages, pageNumber]);
 
   const ensureFork = async () => {
     if (!isSupabaseConfigured) {
@@ -862,47 +1002,18 @@ export function PdfForkEditor({
     setEditorMode("edit");
   };
 
-  const handleSaveLayer = async () => {
-    setError("");
-    setSavingLayer(true);
-
-    try {
-      const activeFork = await ensureFork();
-      const canvas = canvasInstanceRef.current;
-      if (!canvas) {
-        throw new Error("Canvas is not ready.");
-      }
-
-      const json = canvas.toJSON();
-      const objects = Array.isArray(json.objects) ? json.objects : [];
-      const updatedLayers = { ...annotationLayers, [pageNumber]: objects };
-
-      const { error: updateError } = await supabase
-        .from("user_forks")
-        .update({ annotation_layers: updatedLayers } as never)
-        .eq("id", activeFork.id);
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      setAnnotationLayers(updatedLayers);
-    } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Unable to save annotation layer.");
-    } finally {
-      setSavingLayer(false);
-    }
-  };
-
   const removeSelection = () => {
     const canvas = canvasInstanceRef.current;
     if (!canvas) return;
-    const active = canvas.getActiveObject();
-    if (active) {
-      canvas.remove(active);
+    const activeObjects = canvas.getActiveObjects();
+    if (activeObjects.length > 0) {
+      activeObjects.forEach((activeObject) => {
+        canvas.remove(activeObject);
+      });
       canvas.discardActiveObject();
       canvas.renderAll();
       setActiveSelection(false);
+      captureCurrentPageLayer({ autosave: true });
     }
   };
 
@@ -1089,6 +1200,7 @@ export function PdfForkEditor({
     }
 
     const pdfPreview = pdfPreviews[href] ?? { status: "loading" };
+    const lockPdfInteractions = tool !== "pan";
 
     return (
       <div key={`pdf-editor-${index}`} className="mb-6 rounded-[28px] border border-border bg-[#08131f] p-5">
@@ -1108,38 +1220,83 @@ export function PdfForkEditor({
             >
               <X className="h-4 w-4" />
             </Button>
-            <Button type="button" size="sm" variant={tool === "pan" ? "secondary" : "default"} onClick={() => setTool("pan")}>
-              Select
-            </Button>
-            <Button type="button" size="sm" variant={tool === "pen" ? "secondary" : "default"} onClick={() => setTool("pen")}>
-              <PenTool className="mr-2 h-4 w-4" />
-              Pen
+            <Button
+              type="button"
+              size="sm"
+              variant={tool === "pan" ? "default" : "outline"}
+              className="h-9 w-9 p-0"
+              onClick={() => setTool("pan")}
+              aria-label="Select"
+              title="Select"
+            >
+              <MousePointer2 className="h-4 w-4" />
             </Button>
             <Button
               type="button"
               size="sm"
-              variant="default"
+              variant={tool === "pen" ? "default" : "outline"}
+              className="h-9 w-9 p-0"
+              onClick={() => setTool("pen")}
+              aria-label="Pen"
+              title="Pen"
+            >
+              <PenTool className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={tool === "highlight" ? "default" : "outline"}
+              className="h-9 w-9 p-0"
+              onClick={() => setTool("highlight")}
+              aria-label="Highlighter"
+              title="Highlighter"
+            >
+              <Highlighter className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={tool === "text" ? "default" : "outline"}
+              className="h-9 w-9 p-0"
               onClick={() => {
                 setTool("text");
               }}
+              aria-label="Text"
+              title="Text"
             >
-              <TextCursorInput className="mr-2 h-4 w-4" />
-              Text
+              <TextCursorInput className="h-4 w-4" />
             </Button>
-            <Button type="button" size="sm" variant="outline" onClick={removeSelection} disabled={!activeSelection}>
-              <Eraser className="mr-2 h-4 w-4" />
-              Erase
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-9 w-9 p-0"
+              onClick={removeSelection}
+              disabled={!activeSelection}
+              aria-label="Erase selected annotation"
+              title="Erase"
+            >
+              <Eraser className="h-4 w-4" />
             </Button>
-            <Button type="button" size="sm" variant="outline" onClick={handleSaveLayer} disabled={savingLayer || loadingFork}>
-              <BookmarkPlus className="mr-2 h-4 w-4" />
-              Save layer
-            </Button>
+            <div className="flex items-center gap-1 rounded-full border border-border bg-surface px-2 py-1" aria-label="Annotation colors">
+              {annotationColors.map((color) => (
+                <button
+                  key={`annotation-${color}`}
+                  type="button"
+                  className={`h-5 w-5 rounded-full border ${annotationColor === color ? "border-foreground ring-2 ring-focus" : "border-border-strong"}`}
+                  style={{ backgroundColor: color }}
+                  onClick={() => setAnnotationColor(color)}
+                  aria-label={`Use annotation color ${color}`}
+                  title={`Color ${color}`}
+                />
+              ))}
+            </div>
             <Button
               type="button"
               size="sm"
               variant="ghost"
               className="h-9 w-9 p-0"
-              onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
+              onClick={() => goToPdfPage(pageNumber - 1)}
               disabled={pageNumber === 1}
             >
               ←
@@ -1150,7 +1307,7 @@ export function PdfForkEditor({
               size="sm"
               variant="ghost"
               className="h-9 w-9 p-0"
-              onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
+              onClick={() => goToPdfPage(pageNumber + 1)}
               disabled={pageNumber === numPages}
             >
               →
@@ -1158,7 +1315,13 @@ export function PdfForkEditor({
           </div>
         </div>
 
-        <div className="relative rounded-[28px] border border-white/10 bg-[#09101b] p-4">
+        <div
+          className={`relative rounded-[28px] border border-white/10 bg-[#09101b] p-4 ${
+            lockPdfInteractions
+              ? "[&_.react-pdf__Page__textContent]:pointer-events-none [&_.react-pdf__Page__textContent]:select-none [&_.react-pdf__Page__textContent_*]:pointer-events-none [&_.react-pdf__Page__textContent_*]:select-none"
+              : ""
+          }`}
+        >
           <div ref={setPageWrapperElement} className="relative overflow-hidden rounded-[24px] bg-[#0b1421]">
             {pdfPreview.status === "loading" ? (
               <div className="flex h-72 items-center justify-center text-white/60">
@@ -1209,7 +1372,10 @@ export function PdfForkEditor({
                 <canvas
                   ref={setCanvasElement}
                   className="absolute inset-0 pointer-events-auto"
-                  style={{ touchAction: "none" }}
+                  style={{
+                    touchAction: "none",
+                    userSelect: lockPdfInteractions ? "none" : undefined,
+                  }}
                 />
               </>
             )}
