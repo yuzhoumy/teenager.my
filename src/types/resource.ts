@@ -1,6 +1,5 @@
 import type {
   AnnotationRect,
-  KnowledgePatchKind,
   MaterialCoreType,
   MaterialGrade,
   MaterialTag,
@@ -66,28 +65,6 @@ export type ForkAnnotation = {
   quote: string | null;
   created_by: string | null;
   created_at: string;
-};
-
-export type ExerciseSolution = {
-  id: string;
-  material_id: string;
-  user_id: string | null;
-  body: string;
-  image_url: string | null;
-  created_at: string;
-  author_name?: string;
-  vote_count?: number;
-  has_voted?: boolean;
-};
-
-export type KnowledgePatch = {
-  id: string;
-  material_id: string;
-  user_id: string | null;
-  kind: KnowledgePatchKind;
-  body: string;
-  created_at: string;
-  author_name?: string;
 };
 
 export type DiscussionPost = {

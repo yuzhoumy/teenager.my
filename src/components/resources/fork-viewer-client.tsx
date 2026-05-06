@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft, LoaderCircle, Star } from "lucide-react";
@@ -10,6 +11,11 @@ import type { ForkCardData, ForkStar, StudyMaterial, UserFork } from "@/types/re
 import { MarkdownRenderer } from "@/components/resources/markdown-renderer";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+
+const EmbeddedPdfViewer = dynamic(
+  () => import("@/components/resources/embedded-pdf-viewer").then((module) => module.EmbeddedPdfViewer),
+  { ssr: false },
+);
 
 function isPdfLink(url: string) {
   return /\.pdf($|[?#])/i.test(url);
@@ -174,16 +180,19 @@ export function ForkViewerClient() {
   };
 
   const renderPdfLink = (href: string, label: string, index: number) => (
-    <div key={`fork-pdf-${index}`} className="mb-6 rounded-[28px] border border-border bg-[#08131f] p-5">
-      <div className="flex items-center justify-between gap-3">
+    <div key={`fork-pdf-${index}`} className="space-y-4 rounded-[28px] border border-border bg-[#08131f] p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-foreground">{label}</p>
           <p className="text-sm text-text-muted">PDF attachment included in this fork.</p>
         </div>
-        <Button asChild size="sm" variant="outline">
-          <a href={href} target="_blank" rel="noreferrer">Open PDF</a>
-        </Button>
       </div>
+      <EmbeddedPdfViewer
+        file={href}
+        annotationLayers={fork?.annotation_layers ?? {}}
+        enableAnnotatedDownload
+        downloadFileName={`${label || "fork"}-annotated.pdf`}
+      />
     </div>
   );
 

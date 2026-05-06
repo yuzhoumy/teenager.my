@@ -269,7 +269,6 @@ export function PdfForkEditor({
         .from("user_forks")
         .select("*")
         .eq("material_id", materialId)
-        .eq("source_url", sourceUrl)
         .order("created_at", { ascending: false });
 
       if (forksError) {
@@ -318,7 +317,7 @@ export function PdfForkEditor({
     } finally {
       setLoadingForkCards(false);
     }
-  }, [materialId, sourceUrl]);
+  }, [materialId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -393,7 +392,8 @@ export function PdfForkEditor({
           .select("*")
           .eq("user_id", user.id)
           .eq("material_id", materialId)
-          .eq("source_url", sourceUrl)
+          .order("created_at", { ascending: false })
+          .limit(1)
           .maybeSingle();
 
         if (queryError) {
@@ -660,13 +660,71 @@ export function PdfForkEditor({
     }
   };
 
+  const makeUniqueSourceUrl = (baseUrl: string) => {
+    if (baseUrl.includes("#")) {
+      return `${baseUrl}&fork=${Date.now()}`;
+    }
+
+    return `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}fork=${Date.now()}`;
+  };
+
+  const createNewFork = async () => {
+    setLoadingFork(true);
+
+    try {
+      const user = await getSupabaseUser();
+      if (!user) {
+        throw new Error("Please log in to create a fork.");
+      }
+
+      const payload = {
+        user_id: user.id,
+        material_id: materialId,
+        source_url: makeUniqueSourceUrl(sourceUrl),
+        markdown_content: markdown,
+        annotation_layers: {},
+      };
+
+      const { data: createdFork, error: insertError } = await supabase
+        .from("user_forks")
+        .insert(payload as never)
+        .select("*")
+        .single();
+
+      if (insertError) {
+        throw insertError;
+      }
+
+      const typedFork = createdFork as UserFork & { annotation_layers: AnnotationLayerMap | null; markdown_content: string };
+      setFork(typedFork);
+      setMarkdown(typedFork.markdown_content || initialMarkdown);
+      setAnnotationLayers(typedFork.annotation_layers ?? {});
+      setForkCards((current) => [
+        {
+          ...typedFork,
+          author_name: "Your fork",
+          star_count: 0,
+          has_starred: false,
+        },
+        ...current,
+      ]);
+      return typedFork;
+    } finally {
+      setLoadingFork(false);
+    }
+  };
+
   const handleCreateFork = async () => {
     setShowEditor(true);
     setEditorMode("edit");
     setError("");
+    setFork(null);
+    setMarkdown(initialMarkdown);
+    setAnnotationLayers({});
+    setPageNumber(1);
 
     try {
-      await ensureFork();
+      await createNewFork();
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : "Unable to start your fork.");
     }
@@ -677,7 +735,7 @@ export function PdfForkEditor({
     setSavingMarkdown(true);
 
     try {
-      const activeFork = await ensureFork();
+      const activeFork = fork ?? (await createNewFork());
       const { data: updatedFork, error: updateError } = await supabase
         .from("user_forks")
         .update({ markdown_content: markdown } as never)
@@ -707,6 +765,15 @@ export function PdfForkEditor({
     } finally {
       setSavingMarkdown(false);
     }
+  };
+
+  const handleEditFork = (forkCard: ForkCardData) => {
+    setError("");
+    setFork(forkCard);
+    setMarkdown(forkCard.markdown_content || initialMarkdown);
+    setAnnotationLayers(forkCard.annotation_layers ?? {});
+    setShowEditor(true);
+    setEditorMode("edit");
   };
 
   const handleSaveLayer = async () => {
@@ -887,8 +954,21 @@ export function PdfForkEditor({
         {forkCard.markdown_content.replace(/\s+/g, " ").trim() || "No markdown content yet."}
       </p>
 
-      <div className="mt-4">
-        <Button asChild size="sm">
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {currentUserId && forkCard.user_id === currentUserId ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="default"
+            onClick={(event) => {
+              event.stopPropagation();
+              handleEditFork(forkCard);
+            }}
+          >
+            Edit fork
+          </Button>
+        ) : null}
+        <Button asChild size="sm" variant="outline">
           <Link href={`/forks?forkId=${forkCard.id}&materialSlug=${materialSlug}`}>
             Open fork
           </Link>

@@ -11,6 +11,13 @@ create table if not exists public.profiles (
   created_at timestamptz not null default now()
 );
 
+alter table public.profiles enable row level security;
+
+drop policy if exists "Allow public selects on profiles" on public.profiles;
+create policy "Allow public selects on profiles" on public.profiles
+  for select
+  using (true);
+
 create table if not exists public.materials (
   id uuid primary key default gen_random_uuid(),
   slug text not null unique,
@@ -155,68 +162,6 @@ create policy "Allow fork owners to insert annotations" on public.annotations
     )
   );
 
-create table if not exists public.exercise_solutions (
-  id uuid primary key default gen_random_uuid(),
-  material_id uuid not null references public.materials(id) on delete cascade,
-  user_id uuid references auth.users(id) on delete set null,
-  body text not null,
-  image_url text,
-  created_at timestamptz not null default now()
-);
-
-alter table public.exercise_solutions enable row level security;
-
-drop policy if exists "Allow public selects on exercise solutions" on public.exercise_solutions;
-create policy "Allow public selects on exercise solutions" on public.exercise_solutions
-  for select
-  using (true);
-
-drop policy if exists "Allow authenticated inserts on exercise solutions" on public.exercise_solutions;
-create policy "Allow authenticated inserts on exercise solutions" on public.exercise_solutions
-  for insert
-  with check (auth.role() = 'authenticated' and auth.uid() = user_id);
-
-create table if not exists public.exercise_solution_votes (
-  id uuid primary key default gen_random_uuid(),
-  solution_id uuid not null references public.exercise_solutions(id) on delete cascade,
-  user_id uuid not null references auth.users(id) on delete cascade,
-  created_at timestamptz not null default now(),
-  unique (solution_id, user_id)
-);
-
-alter table public.exercise_solution_votes enable row level security;
-
-drop policy if exists "Allow public selects on solution votes" on public.exercise_solution_votes;
-create policy "Allow public selects on solution votes" on public.exercise_solution_votes
-  for select
-  using (true);
-
-drop policy if exists "Allow users to upvote once" on public.exercise_solution_votes;
-create policy "Allow users to upvote once" on public.exercise_solution_votes
-  for insert
-  with check (auth.uid() = user_id);
-
-create table if not exists public.knowledge_patches (
-  id uuid primary key default gen_random_uuid(),
-  material_id uuid not null references public.materials(id) on delete cascade,
-  user_id uuid references auth.users(id) on delete set null,
-  kind text not null check (kind in ('correction', 'mnemonic')),
-  body text not null,
-  created_at timestamptz not null default now()
-);
-
-alter table public.knowledge_patches enable row level security;
-
-drop policy if exists "Allow public selects on knowledge patches" on public.knowledge_patches;
-create policy "Allow public selects on knowledge patches" on public.knowledge_patches
-  for select
-  using (true);
-
-drop policy if exists "Allow authenticated inserts on knowledge patches" on public.knowledge_patches;
-create policy "Allow authenticated inserts on knowledge patches" on public.knowledge_patches
-  for insert
-  with check (auth.role() = 'authenticated' and auth.uid() = user_id);
-
 create table if not exists public.material_discussions (
   id uuid primary key default gen_random_uuid(),
   material_id uuid not null references public.materials(id) on delete cascade,
@@ -281,9 +226,6 @@ create index if not exists idx_user_forks_user_id on public.user_forks (user_id)
 create index if not exists idx_fork_stars_fork_id on public.fork_stars (fork_id);
 create index if not exists idx_fork_stars_user_id on public.fork_stars (user_id);
 create index if not exists idx_annotations_fork_id on public.annotations (fork_id);
-create index if not exists idx_exercise_solutions_material_id on public.exercise_solutions (material_id);
-create index if not exists idx_solution_votes_solution_id on public.exercise_solution_votes (solution_id);
-create index if not exists idx_knowledge_patches_material_id on public.knowledge_patches (material_id);
 create index if not exists idx_material_discussions_material_id on public.material_discussions (material_id);
 
 DO $$

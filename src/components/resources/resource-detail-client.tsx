@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import ReactMarkdown from "react-markdown";
 import { ArrowLeft, CalendarDays, GraduationCap, MessageSquare, Tag, UserRound } from "lucide-react";
-import { Document, Page, pdfjs } from "react-pdf";
-import "react-pdf/dist/Page/TextLayer.css";
 import {
   getMaterialCoreTypeLabel,
   getMaterialGradeLabel,
@@ -13,14 +11,17 @@ import {
 } from "@/lib/materials";
 import type { ResourcePdfLink, StudyMaterial } from "@/types/resource";
 import { ResourceDiscussionThread } from "@/components/resources/resource-discussion-thread";
-import { ResourcePdfModal } from "@/components/resources/resource-pdf-modal";
 import { ResourceSidebar } from "@/components/resources/resource-sidebar";
 import { PdfForkEditor } from "@/components/resources/resource-pdf-fork-editor";
+import { MarkdownRenderer } from "@/components/resources/markdown-renderer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@5.4.296/build/pdf.worker.min.mjs`;
+const EmbeddedPdfViewer = dynamic(
+  () => import("@/components/resources/embedded-pdf-viewer").then((module) => module.EmbeddedPdfViewer),
+  { ssr: false },
+);
 
 type TabKey = "resource" | "fork" | "discussion";
 
@@ -41,39 +42,9 @@ function extractPdfLinks(markdown: string) {
 
 export function ResourceDetailClient({ material }: { material: StudyMaterial }) {
   const [currentTab, setCurrentTab] = useState<TabKey>("resource");
-  const [activePdf, setActivePdf] = useState<ResourcePdfLink | null>(null);
-  const [goToPage, setGoToPage] = useState("1");
-  const [viewerWidth, setViewerWidth] = useState(760);
-  const [numPages, setNumPages] = useState(0);
-  const viewerRef = useRef<HTMLDivElement | null>(null);
-  const pageRefs = useRef<Array<HTMLDivElement | null>>([]);
 
   const pdfLinks = useMemo(() => extractPdfLinks(material.content_markdown), [material.content_markdown]);
   const primaryPdf = pdfLinks[0] ?? null;
-
-  useEffect(() => {
-    if (!viewerRef.current) return;
-
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (!entry) return;
-      setViewerWidth(Math.max(520, Math.min(880, Math.floor(entry.contentRect.width))));
-    });
-
-    observer.observe(viewerRef.current);
-    return () => observer.disconnect();
-  }, []);
-
-  function handleJumpToPage(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const pageNumber = Number(goToPage);
-    if (!Number.isInteger(pageNumber) || pageNumber < 1 || pageNumber > numPages) return;
-
-    const target = pageRefs.current[pageNumber - 1];
-    if (target) {
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }
 
   return (
     <section className="space-y-6">
@@ -160,100 +131,31 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
               <article className="border-b border-border pb-6 lg:border-b-0 lg:border-r lg:pr-8">
                 <div className="mx-auto max-w-none">
                   <div className="prose-reset markdown-readme">
-                    <ReactMarkdown
-                      components={{
-                        h1: ({ children }) => <h1 className="mt-0 border-b border-border pb-4 text-4xl text-foreground">{children}</h1>,
-                        h2: ({ children }) => <h2 className="mt-10 border-b border-border pb-3 text-2xl text-foreground">{children}</h2>,
-                        h3: ({ children }) => <h3 className="mt-8 text-xl text-foreground">{children}</h3>,
-                        p: ({ children }) => <p className="mt-4 text-[15px] leading-7 text-text-muted">{children}</p>,
-                        ul: ({ children }) => <ul className="mt-4 list-disc space-y-2 pl-6 text-[15px] leading-7 text-text-muted">{children}</ul>,
-                        ol: ({ children }) => <ol className="mt-4 list-decimal space-y-2 pl-6 text-[15px] leading-7 text-text-muted">{children}</ol>,
-                        li: ({ children }) => <li>{children}</li>,
-                        code: ({ children }) => (
-                          <code className="rounded bg-surface-muted px-1.5 py-0.5 font-mono text-[0.95em] text-foreground">{children}</code>
-                        ),
-                        pre: ({ children }) => (
-                          <pre className="mt-5 overflow-x-auto rounded-2xl border border-border bg-[#171717] px-4 py-4 text-sm text-[#f8f8f2]">{children}</pre>
-                        ),
-                        blockquote: ({ children }) => (
-                          <blockquote className="mt-5 border-l-4 border-brand/45 bg-surface px-4 py-3 text-sm italic text-text-muted">{children}</blockquote>
-                        ),
-                        a: ({ href, children }) => {
-                          const url = href ?? "";
-                          if (/\.pdf($|[?#])/i.test(url)) {
-                            const label = typeof children === "string" ? children : "Open PDF";
-                            return (
-                              <button
-                                type="button"
-                                onClick={() => setActivePdf({ href: url, label: `${label}` })}
-                                className="font-medium text-brand underline decoration-brand/35 underline-offset-4 hover:text-brand-soft"
-                              >
-                                {children}
-                              </button>
-                            );
-                          }
-
-                          return (
-                            <a href={url} target="_blank" rel="noreferrer" className="font-medium text-brand underline decoration-brand/35 underline-offset-4 hover:text-brand-soft">
-                              {children}
-                            </a>
-                          );
-                        },
-                      }}
-                    >
-                      {material.content_markdown}
-                    </ReactMarkdown>
+                    <MarkdownRenderer
+                      markdown={material.content_markdown}
+                      renderPdfLink={(href, label, index) => (
+                        <div key={`resource-pdf-${index}`} className="space-y-4 rounded-[28px] border border-border bg-[#08131f] p-5">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-foreground">{label}</p>
+                              <p className="text-sm text-text-muted">PDF attachment embedded inside the resource.</p>
+                            </div>
+                            <Button asChild size="sm" variant="outline">
+                              <a href={href} target="_blank" rel="noreferrer" download>
+                                Download
+                              </a>
+                            </Button>
+                          </div>
+                          <EmbeddedPdfViewer file={href} />
+                        </div>
+                      )}
+                    />
                   </div>
                 </div>
-
-                {primaryPdf ? (
-                  <div className="mt-10 rounded-[32px] border border-border bg-[#111827] p-6">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="text-sm uppercase tracking-[0.18em] text-text-soft">PDF preview</p>
-                        <h2 className="mt-2 text-2xl text-foreground">Resource viewer</h2>
-                      </div>
-                      <form className="flex items-center gap-3" onSubmit={handleJumpToPage}>
-                        <label htmlFor="resource-go-to-page" className="text-sm text-text-muted">
-                          Go to page
-                        </label>
-                        <input
-                          id="resource-go-to-page"
-                          type="number"
-                          min={1}
-                          max={numPages || 99}
-                          value={goToPage}
-                          onChange={(event) => setGoToPage(event.target.value)}
-                          className="w-24 rounded-2xl border border-border-strong bg-surface px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus"
-                        />
-                        <Button type="submit" size="sm">Go</Button>
-                      </form>
-                    </div>
-
-                    <div ref={viewerRef} className="mt-6 overflow-auto rounded-[24px] border border-white/10 bg-[#0e1118] p-4">
-                      <Document
-                        file={primaryPdf.href}
-                        onLoadSuccess={({ numPages: pages }) => setNumPages(pages)}
-                      >
-                        {Array.from({ length: numPages || 1 }, (_, index) => {
-                          const pageNumber = index + 1;
-                          return (
-                            <div key={pageNumber} ref={(node) => { pageRefs.current[index] = node; }} className="mb-6 rounded-[24px] bg-[#0b1220] p-4">
-                              <div className="mb-3 flex items-center justify-between gap-3 text-sm text-text-soft">
-                                <span>Page {pageNumber}</span>
-                              </div>
-                              <Page pageNumber={pageNumber} width={viewerWidth} renderAnnotationLayer={false} renderTextLayer={true} />
-                            </div>
-                          );
-                        })}
-                      </Document>
-                    </div>
-                  </div>
-                ) : null}
               </article>
 
               <aside className="bg-[#fbfaf5] px-6 py-6 lg:px-6">
-                <ResourceSidebar material={material} pdfLinks={pdfLinks} onOpenPdf={setActivePdf} />
+                <ResourceSidebar material={material} pdfLinks={pdfLinks} />
               </aside>
             </div>
           ) : currentTab === "fork" ? (
@@ -268,10 +170,6 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
           )}
         </div>
       </Card>
-
-      {activePdf ? (
-        <ResourcePdfModal material={material} pdfLink={activePdf} open={Boolean(activePdf)} onClose={() => setActivePdf(null)} />
-      ) : null}
     </section>
   );
 }
