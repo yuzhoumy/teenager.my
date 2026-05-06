@@ -19,6 +19,10 @@ type AnnotationLayerMap = Record<number, unknown[]>;
 type Tool = "pan" | "pen" | "text";
 type EditorMode = "edit" | "raw";
 type CommunitySort = "latest" | "highest-star";
+type PdfPreviewState =
+  | { status: "loading" }
+  | { status: "ready"; url: string }
+  | { status: "error"; message: string };
 type FabricObject = {
   scaleX: number;
   scaleY: number;
@@ -101,6 +105,11 @@ const bucketName = process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET ?? "resource-
 
 function isPdfLink(url: string) {
   return /\.pdf($|[?#])/i.test(url);
+}
+
+async function blobLooksLikePdf(blob: Blob) {
+  const header = await blob.slice(0, 1024).text();
+  return header.includes("%PDF-");
 }
 
 function isImageLink(url: string) {
@@ -206,6 +215,7 @@ export function PdfForkEditor({
   const [communitySort, setCommunitySort] = useState<CommunitySort>("latest");
   const [forkActionError, setForkActionError] = useState("");
   const [starringForkId, setStarringForkId] = useState<string | null>(null);
+  const [pdfPreviews, setPdfPreviews] = useState<Record<string, PdfPreviewState>>({});
   const loadingOtherForks = loadingForkCards;
   const otherForksError = forkCardsError;
   const otherForks = forkCards;
@@ -262,6 +272,73 @@ export function PdfForkEditor({
     sortedForks.sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime());
     return sortedForks;
   }, [communitySort, currentUserId, forkCards]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const objectUrls: string[] = [];
+    const uniquePdfLinks = Array.from(new Set(pdfLinks));
+
+    if (uniquePdfLinks.length === 0) {
+      setPdfPreviews({});
+      return;
+    }
+
+    setPdfPreviews(
+      Object.fromEntries(uniquePdfLinks.map((href) => [href, { status: "loading" } satisfies PdfPreviewState])),
+    );
+
+    async function resolvePdfLinks() {
+      const entries = await Promise.all(
+        uniquePdfLinks.map(async (href): Promise<[string, PdfPreviewState]> => {
+          try {
+            if (!href) {
+              throw new Error("Missing PDF URL.");
+            }
+
+            if (href.startsWith("blob:") || href.startsWith("data:")) {
+              return [href, { status: "ready", url: href }];
+            }
+
+            const response = await fetch(href);
+            if (!response.ok) {
+              throw new Error(`Failed to fetch PDF (${response.status}).`);
+            }
+
+            const blob = await response.blob();
+            if (blob.size === 0) {
+              throw new Error("PDF file is empty.");
+            }
+            if (!(await blobLooksLikePdf(blob))) {
+              throw new Error("Linked file is not a readable PDF.");
+            }
+
+            const objectUrl = URL.createObjectURL(blob);
+            objectUrls.push(objectUrl);
+            return [href, { status: "ready", url: objectUrl }];
+          } catch {
+            return [
+              href,
+              {
+                status: "error",
+                message: "PDF preview is unavailable. The file may have been moved, deleted, or blocked by the host.",
+              },
+            ];
+          }
+        }),
+      );
+
+      if (!cancelled) {
+        setPdfPreviews(Object.fromEntries(entries));
+      }
+    }
+
+    void resolvePdfLinks();
+
+    return () => {
+      cancelled = true;
+      objectUrls.forEach((objectUrl) => URL.revokeObjectURL(objectUrl));
+    };
+  }, [pdfLinks]);
 
   const loadForkCards = useCallback(async (userId: string | null) => {
     setLoadingForkCards(true);
@@ -684,7 +761,7 @@ export function PdfForkEditor({
         user_id: user.id,
         material_id: materialId,
         source_url: makeUniqueSourceUrl(sourceUrl),
-        markdown_content: markdown,
+        markdown_content: initialMarkdown,
         annotation_layers: {},
       };
 
@@ -940,7 +1017,17 @@ export function PdfForkEditor({
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-foreground">
-            {currentUserId && forkCard.user_id === currentUserId ? "Your fork" : forkCard.author_name}
+            {currentUserId && forkCard.user_id === currentUserId ? (
+              "Your fork"
+            ) : (
+              <Link
+                href={`/users?userId=${forkCard.user_id}`}
+                className="hover:text-brand"
+                onClick={(event) => event.stopPropagation()}
+              >
+                {forkCard.author_name}
+              </Link>
+            )}
           </p>
           <p className="mt-1 text-sm text-text-muted">Saved on {new Date(forkCard.created_at).toLocaleDateString()}</p>
         </div>
@@ -1000,6 +1087,8 @@ export function PdfForkEditor({
         </a>
       );
     }
+
+    const pdfPreview = pdfPreviews[href] ?? { status: "loading" };
 
     return (
       <div key={`pdf-editor-${index}`} className="mb-6 rounded-[28px] border border-border bg-[#08131f] p-5">
@@ -1071,33 +1160,59 @@ export function PdfForkEditor({
 
         <div className="relative rounded-[28px] border border-white/10 bg-[#09101b] p-4">
           <div ref={setPageWrapperElement} className="relative overflow-hidden rounded-[24px] bg-[#0b1421]">
-            <Document
-              file={href}
-              loading={
-                <div className="flex h-72 items-center justify-center text-white/60">
-                  <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                  Loading PDF...
-                </div>
-              }
-              onLoadSuccess={({ numPages: pages }) => {
-                setNumPages(pages);
-              }}
-              onLoadError={(pdfError) => {
-                setError(`Failed to load PDF: ${pdfError.message}`);
-              }}
-            >
-              <Page
-                pageNumber={pageNumber}
-                width={pageWrapperElement?.clientWidth ?? 760}
-                renderAnnotationLayer={false}
-                renderTextLayer={true}
-              />
-            </Document>
-            <canvas
-              ref={setCanvasElement}
-              className="absolute inset-0 pointer-events-auto"
-              style={{ touchAction: "none" }}
-            />
+            {pdfPreview.status === "loading" ? (
+              <div className="flex h-72 items-center justify-center text-white/60">
+                <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                Loading PDF...
+              </div>
+            ) : pdfPreview.status === "error" ? (
+              <div className="flex min-h-72 flex-col items-center justify-center gap-3 px-6 text-center">
+                <p className="text-sm text-white/70">{pdfPreview.message}</p>
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm font-semibold text-brand underline decoration-brand/35 underline-offset-4 hover:text-brand-soft"
+                >
+                  Open original link
+                </a>
+              </div>
+            ) : (
+              <>
+                <Document
+                  file={pdfPreview.url}
+                  loading={
+                    <div className="flex h-72 items-center justify-center text-white/60">
+                      <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                      Loading PDF...
+                    </div>
+                  }
+                  error={
+                    <div className="flex h-72 items-center justify-center px-6 text-center text-sm text-white/60">
+                      PDF preview is unavailable. Open the original link instead.
+                    </div>
+                  }
+                  onLoadSuccess={({ numPages: pages }) => {
+                    setNumPages(pages);
+                  }}
+                  onLoadError={() => {
+                    setError("PDF preview is unavailable. The file may have been moved, deleted, or blocked by the host.");
+                  }}
+                >
+                  <Page
+                    pageNumber={pageNumber}
+                    width={pageWrapperElement?.clientWidth ?? 760}
+                    renderAnnotationLayer={false}
+                    renderTextLayer={true}
+                  />
+                </Document>
+                <canvas
+                  ref={setCanvasElement}
+                  className="absolute inset-0 pointer-events-auto"
+                  style={{ touchAction: "none" }}
+                />
+              </>
+            )}
           </div>
         </div>
       </div>

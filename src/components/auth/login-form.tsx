@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,10 +10,12 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const registrationConfirmed = searchParams.get("registered") === "success";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState(registrationConfirmed ? "Registration successful. You can now log in." : "");
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {

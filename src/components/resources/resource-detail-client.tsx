@@ -175,7 +175,13 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
             </span>
             <span className="inline-flex items-center gap-2">
               <UserRound className="h-4 w-4 text-brand" />
-              {material.author_name}
+              {material.uploaded_by ? (
+                <Link href={`/users?userId=${material.uploaded_by}`} className="hover:text-foreground">
+                  {material.author_name}
+                </Link>
+              ) : (
+                material.author_name
+              )}
             </span>
             <span className="inline-flex items-center gap-2">
               <CalendarDays className="h-4 w-4 text-brand" />
@@ -256,7 +262,10 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
                             {fork.pinned_title?.trim() || `Pinned fork ${index + 1}`}
                           </h2>
                           <p className="mt-2 text-sm text-text-muted">
-                            By {fork.author_name}
+                            By{" "}
+                            <Link href={`/users?userId=${fork.user_id}`} className="hover:text-foreground">
+                              {fork.author_name}
+                            </Link>
                           </p>
                         </div>
                       </div>

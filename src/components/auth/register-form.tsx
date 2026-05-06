@@ -40,6 +40,7 @@ export function RegisterForm() {
       email,
       password,
       options: {
+        emailRedirectTo: `${window.location.origin}/login?registered=success`,
         data: {
           display_name: displayName,
           form: Number(formLevel),
@@ -61,7 +62,7 @@ export function RegisterForm() {
     <Card className="mx-auto w-full max-w-md rounded-[32px]">
       <p className="mb-3 text-sm uppercase tracking-[0.18em] text-text-soft">Account</p>
       <h1 className="mb-1 text-4xl text-foreground">Create your account</h1>
-      <p className="mb-6 text-sm text-text-muted">Only MOE school emails can register.</p>
+      <p className="mb-6 text-sm text-text-muted">Only MOE emails can register.</p>
       <form onSubmit={onSubmit} className="space-y-4">
         <Input
           placeholder="Display name"

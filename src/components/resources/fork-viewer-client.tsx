@@ -242,7 +242,11 @@ export function ForkViewerClient() {
             <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Fork viewer</p>
             <h1 className="mt-2 text-3xl text-foreground">{material?.title ?? "Community fork"}</h1>
             <p className="mt-3 text-sm text-text-muted">
-              By {fork.author_name} • Saved on {new Date(fork.created_at).toLocaleDateString()}
+              By{" "}
+              <Link href={`/users?userId=${fork.user_id}`} className="hover:text-foreground">
+                {fork.author_name}
+              </Link>
+              {" "}• Saved on {new Date(fork.created_at).toLocaleDateString()}
             </p>
           </div>
 
