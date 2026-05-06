@@ -52,6 +52,8 @@ export function EmbeddedPdfViewer({
   const [pageInput, setPageInput] = useState("1");
   const [error, setError] = useState("");
   const [downloading, setDownloading] = useState(false);
+  const [resolvedFile, setResolvedFile] = useState<string | null>(null);
+  const [loadingFile, setLoadingFile] = useState(true);
   const [fabric, setFabric] = useState<FabricModule | null>(null);
   const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(null);
   const [pageWrapperElement, setPageWrapperElement] = useState<HTMLDivElement | null>(null);
@@ -73,6 +75,59 @@ export function EmbeddedPdfViewer({
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl: string | null = null;
+
+    async function resolveFile() {
+      setLoadingFile(true);
+      setError("");
+      setResolvedFile(null);
+
+      try {
+        if (!file) {
+          throw new Error("Missing PDF file.");
+        }
+
+        if (file.startsWith("blob:") || file.startsWith("data:")) {
+          if (!cancelled) {
+            setResolvedFile(file);
+          }
+          return;
+        }
+
+        const response = await fetch(file);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch PDF (${response.status}).`);
+        }
+
+        const blob = await response.blob();
+        objectUrl = URL.createObjectURL(blob);
+
+        if (!cancelled) {
+          setResolvedFile(objectUrl);
+        }
+      } catch {
+        if (!cancelled) {
+          setError("PDF preview is unavailable here. Open or download the file instead.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingFile(false);
+        }
+      }
+    }
+
+    void resolveFile();
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [file]);
 
   useEffect(() => {
     if (!fabric || !canvasElement) {
@@ -271,33 +326,44 @@ export function EmbeddedPdfViewer({
       {error ? <p className="mb-4 rounded-xl border border-rose-400/30 bg-rose-400/10 px-3 py-2 text-sm text-rose-200">{error}</p> : null}
 
       <div ref={setPageWrapperElement} className="relative overflow-hidden rounded-[24px] bg-[#0b1421]">
-        <Document
-          file={file}
-          loading={
-            <div className="flex h-72 items-center justify-center text-white/60">
-              <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-              Loading PDF...
-            </div>
-          }
-          onLoadSuccess={({ numPages: pages }) => {
-            setNumPages(pages);
-            setPageNumber((currentPage) => {
-              const nextPage = Math.min(Math.max(1, currentPage), pages);
-              setPageInput(`${nextPage}`);
-              return nextPage;
-            });
-          }}
-          onLoadError={(pdfError) => {
-            setError(`Failed to load PDF: ${pdfError.message}`);
-          }}
-        >
-          <Page
-            pageNumber={pageNumber}
-            width={pageWrapperElement?.clientWidth ?? 760}
-            renderAnnotationLayer={false}
-            renderTextLayer
-          />
-        </Document>
+        {loadingFile ? (
+          <div className="flex h-72 items-center justify-center text-white/60">
+            <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+            Loading PDF...
+          </div>
+        ) : resolvedFile ? (
+          <Document
+            file={resolvedFile}
+            loading={
+              <div className="flex h-72 items-center justify-center text-white/60">
+                <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                Loading PDF...
+              </div>
+            }
+            onLoadSuccess={({ numPages: pages }) => {
+              setNumPages(pages);
+              setPageNumber((currentPage) => {
+                const nextPage = Math.min(Math.max(1, currentPage), pages);
+                setPageInput(`${nextPage}`);
+                return nextPage;
+              });
+            }}
+            onLoadError={() => {
+              setError("PDF preview is unavailable here. Open or download the file instead.");
+            }}
+          >
+            <Page
+              pageNumber={pageNumber}
+              width={pageWrapperElement?.clientWidth ?? 760}
+              renderAnnotationLayer={false}
+              renderTextLayer
+            />
+          </Document>
+        ) : (
+          <div className="flex h-72 items-center justify-center px-6 text-center text-sm text-white/60">
+            Preview unavailable for this PDF.
+          </div>
+        )}
         <canvas
           ref={setCanvasElement}
           className="absolute inset-0 pointer-events-none"

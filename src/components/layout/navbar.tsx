@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { BookOpen, Moon, Sun, UserCircle2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
 
@@ -16,30 +16,31 @@ const futureModules = [
 
 export function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
-    if (typeof window === "undefined") {
-      return "light";
-    }
+  const [themeVersion, setThemeVersion] = useState(0);
+  const hasMounted = useSyncExternalStore(
+    () => () => undefined,
+    () => true,
+    () => false,
+  );
 
-    const stored = window.localStorage.getItem("app.theme");
-    return stored === "light" || stored === "dark"
-      ? stored
-      : (window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light");
-  });
-
+  const theme =
+    hasMounted &&
+    (window.localStorage.getItem("app.theme") === "light" || window.localStorage.getItem("app.theme") === "dark")
+      ? (window.localStorage.getItem("app.theme") as "light" | "dark")
+      : hasMounted && window.matchMedia?.("(prefers-color-scheme: dark)")?.matches
+        ? "dark"
+        : "light";
   const themeAriaLabel = theme === "dark" ? "Switch to light mode" : "Switch to dark mode";
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-  }, [theme]);
+  }, [theme, hasMounted, themeVersion]);
 
   const toggleTheme = () => {
-    setTheme((prev) => {
-      const next = prev === "dark" ? "light" : "dark";
-      window.localStorage.setItem("app.theme", next);
-      document.documentElement.dataset.theme = next;
-      return next;
-    });
+    const next = theme === "dark" ? "light" : "dark";
+    window.localStorage.setItem("app.theme", next);
+    document.documentElement.dataset.theme = next;
+    setThemeVersion((current) => current + 1);
   };
 
   useEffect(() => {
