@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import { MessageSquareText } from "lucide-react";
 import type { DiscussionPost } from "@/types/resource";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
@@ -14,12 +15,34 @@ async function getCurrentUser() {
   return data.user;
 }
 
+async function attachAuthors(posts: DiscussionPost[]) {
+  const userIds = Array.from(new Set(posts.map((post) => post.user_id).filter(Boolean))) as string[];
+
+  if (userIds.length === 0) {
+    return posts;
+  }
+
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("user_id, display_name")
+    .in("user_id", userIds);
+
+  const typedProfiles = (profiles ?? []) as Array<{ user_id: string; display_name: string }>;
+  const authorNames = new Map(typedProfiles.map((profile) => [profile.user_id, profile.display_name]));
+
+  return posts.map((post) => ({
+    ...post,
+    author_name: post.user_id ? authorNames.get(post.user_id) ?? "Unknown author" : "Unknown author",
+  }));
+}
+
 export function ResourceDiscussionThread({ materialId }: { materialId: string }) {
   const [posts, setPosts] = useState<DiscussionPost[]>([]);
   const [body, setBody] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const composerRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,7 +63,7 @@ export function ResourceDiscussionThread({ materialId }: { materialId: string })
         if (discussionError) {
           setError(discussionError.message);
         } else {
-          setPosts((data ?? []) as DiscussionPost[]);
+          setPosts(await attachAuthors((data ?? []) as DiscussionPost[]));
         }
         setLoading(false);
       }
@@ -81,13 +104,30 @@ export function ResourceDiscussionThread({ materialId }: { materialId: string })
         throw insertError;
       }
 
-      setPosts((current) => [data as DiscussionPost, ...current]);
+      const [postWithAuthor] = await attachAuthors([data as DiscussionPost]);
+      setPosts((current) => [postWithAuthor, ...current]);
       setBody("");
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Unable to post discussion.");
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function handleReply(post: DiscussionPost) {
+    const mention = `@${post.author_name ?? "Unknown author"} `;
+
+    setBody((currentBody) => {
+      if (!currentBody.trim()) {
+        return mention;
+      }
+
+      return currentBody.endsWith("\n") ? `${currentBody}${mention}` : `${currentBody}\n${mention}`;
+    });
+
+    requestAnimationFrame(() => {
+      composerRef.current?.focus();
+    });
   }
 
   return (
@@ -112,6 +152,23 @@ export function ResourceDiscussionThread({ materialId }: { materialId: string })
           ) : (
             posts.map((post) => (
               <div key={post.id} className="rounded-2xl border border-border bg-surface px-4 py-4">
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  {post.user_id ? (
+                    <Link
+                      href={`/users?userId=${post.user_id}`}
+                      className="text-xs font-semibold uppercase tracking-[0.16em] text-text-soft hover:text-foreground"
+                    >
+                      {post.author_name ?? "Unknown author"}
+                    </Link>
+                  ) : (
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-soft">
+                      {post.author_name ?? "Unknown author"}
+                    </p>
+                  )}
+                  <Button type="button" variant="ghost" size="sm" onClick={() => handleReply(post)}>
+                    Reply
+                  </Button>
+                </div>
                 <p className="text-sm text-foreground">{post.body}</p>
                 <p className="mt-2 text-xs uppercase tracking-[0.16em] text-text-soft">
                   {new Date(post.created_at).toLocaleString()}
@@ -124,6 +181,7 @@ export function ResourceDiscussionThread({ materialId }: { materialId: string })
         <div className="space-y-3 rounded-[24px] border border-border bg-[#fbfaf5] p-4">
           <h3 className="text-xl text-foreground">Add to thread</h3>
           <Textarea
+            ref={composerRef}
             rows={6}
             value={body}
             onChange={(event) => setBody(event.target.value)}

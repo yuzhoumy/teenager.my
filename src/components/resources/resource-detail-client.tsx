@@ -147,7 +147,7 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
         Back to resources
       </Link>
 
-      <Card className="overflow-hidden rounded-[32px] border-border-strong bg-surface-strong p-0">
+      <Card className="overflow-hidden rounded-[32px] border-border-strong bg-surface-strong p-0 lg:overflow-visible">
         <div className="border-b border-border bg-gradient-to-br from-surface via-background to-surface-muted px-6 py-6 sm:px-8">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-4xl">
@@ -225,9 +225,9 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
           </div>
         </div>
 
-        <div className="px-6 py-6 sm:px-8">
+        <div className="px-2 py-3 sm:px-8 sm:py-6">
           {currentTab === "resource" ? (
-            <div className="grid gap-0 lg:grid-cols-[minmax(0,7fr)_minmax(280px,3fr)]">
+            <div className="grid gap-0 lg:grid-cols-[minmax(0,7fr)_minmax(280px,3fr)] lg:items-start">
               <article className="border-b border-border pb-6 lg:border-b-0 lg:border-r lg:pr-8">
                 <div className="mx-auto max-w-none">
                   <div className="prose-reset markdown-readme">
@@ -279,7 +279,7 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
                 </div>
               </article>
 
-              <aside className="bg-[#fbfaf5] px-6 py-6 lg:px-6">
+              <aside className="px-6 py-6 lg:sticky lg:top-10 lg:mt-4 lg:max-h-[calc(100vh-4rem)] lg:self-start lg:overflow-y-auto lg:px-6">
                 <ResourceSidebar material={material} pinnedForks={pinnedForks} />
               </aside>
             </div>

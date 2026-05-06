@@ -258,6 +258,13 @@ export function ForkViewerClient() {
 
         {error ? <p className="mt-4 rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">{error}</p> : null}
 
+        {fork.description?.trim() ? (
+          <div className="mt-6 rounded-[24px] border border-border bg-background p-5">
+            <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Fork description</p>
+            <p className="mt-3 text-sm leading-7 text-text-muted">{fork.description}</p>
+          </div>
+        ) : null}
+
         <div className="mt-6 rounded-[24px] border border-border bg-background p-5">
           <MarkdownRenderer
             markdown={fork.markdown_content}

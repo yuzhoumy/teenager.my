@@ -31,6 +31,7 @@ export type UserFork = {
   user_id: string;
   material_id: string;
   source_url: string;
+  description: string | null;
   markdown_content: string;
   annotation_layers: Record<number, unknown[]> | null;
   is_pinned: boolean;
@@ -51,6 +52,7 @@ export type ForkCardData = {
   user_id: string;
   material_id: string;
   source_url: string;
+  description: string | null;
   markdown_content: string;
   annotation_layers: Record<number, unknown[]> | null;
   is_pinned: boolean;

@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type TouchEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/TextLayer.css";
-import { Eraser, Highlighter, LoaderCircle, MousePointer2, PenTool, Star, TextCursorInput, Upload, X } from "lucide-react";
+import { Eraser, Highlighter, LoaderCircle, MousePointer2, PenTool, Star, TextCursorInput, Upload, X, ZoomIn, ZoomOut } from "lucide-react";
 import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 import type { ForkCardData, ForkStar, UserFork } from "@/types/resource";
@@ -23,6 +23,9 @@ type PdfPreviewState =
   | { status: "loading" }
   | { status: "ready"; url: string }
   | { status: "error"; message: string };
+const minPdfZoom = 0.75;
+const maxPdfZoom = 2.5;
+const pdfZoomStep = 0.15;
 type FabricObject = {
   scaleX: number;
   scaleY: number;
@@ -94,6 +97,7 @@ type ForkSummary = {
   user_id: string;
   material_id: string;
   source_url: string;
+  description: string | null;
   markdown_content: string;
   annotation_layers: Record<number, unknown[]> | null;
   is_pinned: boolean;
@@ -111,6 +115,21 @@ function hexToRgba(hex: string, alpha: number) {
   const green = Number.parseInt(normalizedHex.slice(2, 4), 16);
   const blue = Number.parseInt(normalizedHex.slice(4, 6), 16);
   return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}
+
+function clampPdfZoom(value: number) {
+  return Math.min(maxPdfZoom, Math.max(minPdfZoom, Number(value.toFixed(2))));
+}
+
+function getTouchDistance(touches: { item: (index: number) => { clientX: number; clientY: number } | null }) {
+  const firstTouch = touches.item(0);
+  const secondTouch = touches.item(1);
+
+  if (!firstTouch || !secondTouch) {
+    return 0;
+  }
+
+  return Math.hypot(firstTouch.clientX - secondTouch.clientX, firstTouch.clientY - secondTouch.clientY);
 }
 
 function isPdfLink(url: string) {
@@ -207,6 +226,8 @@ export function PdfForkEditor({
   const [pageNumber, setPageNumber] = useState(1);
   const [fork, setFork] = useState<UserFork | null>(null);
   const [annotationLayers, setAnnotationLayers] = useState<AnnotationLayerMap>({});
+  const [forkTitle, setForkTitle] = useState("");
+  const [forkDescription, setForkDescription] = useState("");
   const [markdown, setMarkdown] = useState(initialMarkdown);
   const [error, setError] = useState("");
   const [loadingFork, setLoadingFork] = useState(true);
@@ -215,6 +236,8 @@ export function PdfForkEditor({
   const [uploadingFile, setUploadingFile] = useState(false);
   const [tool, setTool] = useState<Tool>("pan");
   const [annotationColor, setAnnotationColor] = useState<(typeof annotationColors)[number]>("#f59e0b");
+  const [pdfZoom, setPdfZoom] = useState(1);
+  const [pdfStageSize, setPdfStageSize] = useState({ width: 0, height: 0 });
   const [editorMode, setEditorMode] = useState<EditorMode>("edit");
   const [fabric, setFabric] = useState<FabricModule | null>(null);
   const [showEditor, setShowEditor] = useState(false);
@@ -225,7 +248,6 @@ export function PdfForkEditor({
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [communitySort, setCommunitySort] = useState<CommunitySort>("latest");
   const [forkActionError, setForkActionError] = useState("");
-  const [starringForkId, setStarringForkId] = useState<string | null>(null);
   const [pdfPreviews, setPdfPreviews] = useState<Record<string, PdfPreviewState>>({});
   const loadingOtherForks = loadingForkCards;
   const otherForksError = forkCardsError;
@@ -264,8 +286,12 @@ export function PdfForkEditor({
   const pageNumberRef = useRef(1);
   const autosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const restoringCanvasRef = useRef(false);
+  const pinchDistanceRef = useRef(0);
+  const pinchZoomRef = useRef(1);
   const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(null);
+  const [canvasHostElement, setCanvasHostElement] = useState<HTMLDivElement | null>(null);
   const [pageWrapperElement, setPageWrapperElement] = useState<HTMLDivElement | null>(null);
+  const [pdfStageElement, setPdfStageElement] = useState<HTMLDivElement | null>(null);
 
   const myForks = useMemo(
     () => forkCards.filter((forkCard) => currentUserId && forkCard.user_id === currentUserId),
@@ -500,6 +526,8 @@ export function PdfForkEditor({
         if (data && !cancelled) {
           const typedFork = data as UserFork & { annotation_layers: AnnotationLayerMap | null; markdown_content: string };
           setFork(typedFork);
+          setForkTitle(typedFork.pinned_title ?? "");
+          setForkDescription(typedFork.description ?? "");
           setMarkdown(typedFork.markdown_content || initialMarkdown);
           setAnnotationLayers(typedFork.annotation_layers ?? {});
         }
@@ -605,6 +633,27 @@ export function PdfForkEditor({
       scheduleAnnotationAutosave(nextLayers);
     }
   }, [scheduleAnnotationAutosave]);
+
+  useEffect(() => {
+    if (!canvasHostElement) {
+      setCanvasElement(null);
+      return;
+    }
+
+    const nextCanvas = document.createElement("canvas");
+    nextCanvas.style.position = "absolute";
+    nextCanvas.style.inset = "0";
+    nextCanvas.style.touchAction = "none";
+    nextCanvas.style.userSelect = "none";
+    nextCanvas.style.pointerEvents = "auto";
+    canvasHostElement.replaceChildren(nextCanvas);
+    setCanvasElement(nextCanvas);
+
+    return () => {
+      setCanvasElement(null);
+      canvasHostElement.replaceChildren();
+    };
+  }, [canvasHostElement]);
 
   useEffect(() => {
     if (!fabric || !canvasElement) {
@@ -744,17 +793,18 @@ export function PdfForkEditor({
 
   useEffect(() => {
     const resize = () => {
-      const pageWrapper = pageWrapperElement;
+      const pdfStage = pdfStageElement;
       const canvas = canvasInstanceRef.current;
-      if (!pageWrapper || !canvas) return;
+      if (!pdfStage || !canvas) return;
 
-      const rect = pageWrapper.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) {
+      const width = pdfStage.offsetWidth;
+      const height = pdfStage.offsetHeight;
+      if (width === 0 || height === 0) {
         return;
       }
 
-      const widthRatio = rect.width / (canvasSize.current.width || rect.width);
-      const heightRatio = rect.height / (canvasSize.current.height || rect.height);
+      const widthRatio = width / (canvasSize.current.width || width);
+      const heightRatio = height / (canvasSize.current.height || height);
       const scale = Math.min(widthRatio || 1, heightRatio || 1);
       if (canvasSize.current.width > 0 && scale !== 1) {
         canvas.getObjects().forEach((obj) => {
@@ -766,20 +816,37 @@ export function PdfForkEditor({
         });
       }
 
-      canvas.setWidth(rect.width);
-      canvas.setHeight(rect.height);
-      canvasSize.current = { width: rect.width, height: rect.height };
+      canvas.setWidth(width);
+      canvas.setHeight(height);
+      canvasSize.current = { width, height };
       canvas.renderAll();
     };
 
     const observer = new ResizeObserver(() => resize());
-    if (pageWrapperElement) {
-      observer.observe(pageWrapperElement);
+    if (pdfStageElement) {
+      observer.observe(pdfStageElement);
       resize();
     }
 
     return () => observer.disconnect();
-  }, [canvasElement, pageNumber, pageWrapperElement]);
+  }, [canvasElement, pageNumber, pdfStageElement]);
+
+  useEffect(() => {
+    if (!pdfStageElement) {
+      setPdfStageSize({ width: 0, height: 0 });
+      return;
+    }
+
+    const resize = () => {
+      setPdfStageSize({ width: pdfStageElement.offsetWidth, height: pdfStageElement.offsetHeight });
+    };
+
+    const observer = new ResizeObserver(() => resize());
+    observer.observe(pdfStageElement);
+    resize();
+
+    return () => observer.disconnect();
+  }, [pdfStageElement, pageNumber]);
 
   useEffect(() => {
     const canvas = canvasInstanceRef.current;
@@ -815,6 +882,36 @@ export function PdfForkEditor({
     setActiveSelection(false);
   }, [captureCurrentPageLayer, numPages, pageNumber]);
 
+  const changePdfZoom = useCallback((delta: number) => {
+    setPdfZoom((currentZoom) => clampPdfZoom(currentZoom + delta));
+  }, []);
+
+  const handlePdfTouchStart = useCallback((event: TouchEvent<HTMLDivElement>) => {
+    if (event.touches.length !== 2) {
+      pinchDistanceRef.current = 0;
+      return;
+    }
+
+    pinchDistanceRef.current = getTouchDistance(event.touches);
+    pinchZoomRef.current = pdfZoom;
+  }, [pdfZoom]);
+
+  const handlePdfTouchMove = useCallback((event: TouchEvent<HTMLDivElement>) => {
+    if (event.touches.length !== 2 || pinchDistanceRef.current <= 0) {
+      return;
+    }
+
+    event.preventDefault();
+    const nextDistance = getTouchDistance(event.touches);
+    setPdfZoom(clampPdfZoom(pinchZoomRef.current * (nextDistance / pinchDistanceRef.current)));
+  }, []);
+
+  const handlePdfTouchEnd = useCallback((event: TouchEvent<HTMLDivElement>) => {
+    if (event.touches.length < 2) {
+      pinchDistanceRef.current = 0;
+    }
+  }, []);
+
   const ensureFork = async () => {
     if (!isSupabaseConfigured) {
       throw new Error("Supabase is not configured.");
@@ -848,6 +945,8 @@ export function PdfForkEditor({
       if (existingFork) {
         const typedFork = existingFork as UserFork & { annotation_layers: AnnotationLayerMap | null; markdown_content: string };
         setFork(typedFork);
+        setForkTitle(typedFork.pinned_title ?? "");
+        setForkDescription(typedFork.description ?? "");
         setMarkdown(typedFork.markdown_content || initialMarkdown);
         setAnnotationLayers(typedFork.annotation_layers ?? {});
         return typedFork;
@@ -857,6 +956,8 @@ export function PdfForkEditor({
         user_id: user.id,
         material_id: materialId,
         source_url: sourceUrl,
+        pinned_title: forkTitle.trim() || null,
+        description: forkDescription.trim() || null,
         markdown_content: markdown,
         annotation_layers: {},
       };
@@ -901,6 +1002,7 @@ export function PdfForkEditor({
         user_id: user.id,
         material_id: materialId,
         source_url: makeUniqueSourceUrl(sourceUrl),
+        description: null,
         markdown_content: initialMarkdown,
         annotation_layers: {},
       };
@@ -917,6 +1019,8 @@ export function PdfForkEditor({
 
       const typedFork = createdFork as UserFork & { annotation_layers: AnnotationLayerMap | null; markdown_content: string };
       setFork(typedFork);
+      setForkTitle(typedFork.pinned_title ?? "");
+      setForkDescription(typedFork.description ?? "");
       setMarkdown(typedFork.markdown_content || initialMarkdown);
       setAnnotationLayers(typedFork.annotation_layers ?? {});
       setForkCards((current) => [
@@ -942,6 +1046,8 @@ export function PdfForkEditor({
     setEditorMode("edit");
     setError("");
     setFork(null);
+    setForkTitle("");
+    setForkDescription("");
     setMarkdown(initialMarkdown);
     setAnnotationLayers({});
     setPageNumber(1);
@@ -955,13 +1061,24 @@ export function PdfForkEditor({
 
   const handleSaveMarkdown = async () => {
     setError("");
+
+    const trimmedTitle = forkTitle.trim();
+    if (!trimmedTitle) {
+      setError("Please add a title before saving this fork.");
+      return;
+    }
+
     setSavingMarkdown(true);
 
     try {
       const activeFork = fork ?? (await createNewFork());
       const { data: updatedFork, error: updateError } = await supabase
         .from("user_forks")
-        .update({ markdown_content: markdown } as never)
+        .update({
+          pinned_title: trimmedTitle,
+          description: forkDescription.trim() || null,
+          markdown_content: markdown,
+        } as never)
         .eq("id", activeFork.id)
         .select("*")
         .single();
@@ -972,6 +1089,8 @@ export function PdfForkEditor({
 
       const typedFork = updatedFork as UserFork & { annotation_layers: AnnotationLayerMap | null; markdown_content: string };
       setFork(typedFork);
+      setForkTitle(typedFork.pinned_title ?? "");
+      setForkDescription(typedFork.description ?? "");
       setForkCards((current) => {
         const nextFork: ForkCardData = {
           ...typedFork,
@@ -996,6 +1115,8 @@ export function PdfForkEditor({
   const handleEditFork = (forkCard: ForkCardData) => {
     setError("");
     setFork(forkCard);
+    setForkTitle(forkCard.pinned_title ?? "");
+    setForkDescription(forkCard.description ?? "");
     setMarkdown(forkCard.markdown_content || initialMarkdown);
     setAnnotationLayers(forkCard.annotation_layers ?? {});
     setShowEditor(true);
@@ -1062,70 +1183,21 @@ export function PdfForkEditor({
     }
   };
 
-  const toggleForkStar = async (forkCard: ForkCardData) => {
-    if (!currentUserId || starringForkId) {
-      if (!currentUserId) {
-        setForkActionError("Please log in to star a fork.");
-      }
-      return;
-    }
-
-    setForkActionError("");
-    setStarringForkId(forkCard.id);
-
-    try {
-      if (forkCard.has_starred) {
-        const { error: deleteError } = await supabase
-          .from("fork_stars")
-          .delete()
-          .eq("fork_id", forkCard.id)
-          .eq("user_id", currentUserId);
-
-        if (deleteError) {
-          throw deleteError;
-        }
-      } else {
-        const payload: Database["public"]["Tables"]["fork_stars"]["Insert"] = {
-          fork_id: forkCard.id,
-          user_id: currentUserId,
-        };
-
-        const { error: insertError } = await supabase
-          .from("fork_stars")
-          .insert(payload as never);
-
-        if (insertError) {
-          throw insertError;
-        }
-      }
-
-      setForkCards((current) =>
-        current.map((currentFork) => {
-          if (currentFork.id !== forkCard.id) {
-            return currentFork;
-          }
-
-          return {
-            ...currentFork,
-            has_starred: !currentFork.has_starred,
-            star_count: currentFork.has_starred ? Math.max(0, currentFork.star_count - 1) : currentFork.star_count + 1,
-          };
-        }),
-      );
-    } catch (starError) {
-      setForkActionError(starError instanceof Error ? starError.message : "Unable to update fork star.");
-    } finally {
-      setStarringForkId(null);
-    }
-  };
-
   const renderForkCard = (forkCard: ForkCardData) => (
     <div
       key={forkCard.id}
-      className="cursor-pointer rounded-2xl border border-border bg-surface-strong p-4 transition hover:border-foreground/30 hover:bg-surface"
+      className="flex min-h-48 cursor-pointer flex-col rounded-2xl border border-border bg-surface-strong p-4 transition hover:border-foreground/30 hover:bg-surface"
       onClick={() => router.push(`/forks?forkId=${forkCard.id}&materialSlug=${materialSlug}`)}
     >
-      <div className="flex items-start justify-between gap-3">
+      <h3 className="text-2xl leading-tight text-foreground">
+        {forkCard.pinned_title?.trim() || "Community fork"}
+      </h3>
+
+      <p className="mt-3 min-h-12 text-sm leading-6 text-text-muted">
+        {forkCard.description?.trim() || ""}
+      </p>
+
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-5">
         <div>
           <p className="text-sm font-semibold text-foreground">
             {currentUserId && forkCard.user_id === currentUserId ? (
@@ -1140,28 +1212,12 @@ export function PdfForkEditor({
               </Link>
             )}
           </p>
-          <p className="mt-1 text-sm text-text-muted">Saved on {new Date(forkCard.created_at).toLocaleDateString()}</p>
+          <p className="mt-1 text-xs text-text-muted">Saved on {new Date(forkCard.created_at).toLocaleDateString()}</p>
         </div>
-        <Button
-          type="button"
-          size="sm"
-          variant={forkCard.has_starred ? "secondary" : "outline"}
-          disabled={starringForkId === forkCard.id}
-          onClick={(event) => {
-            event.stopPropagation();
-            void toggleForkStar(forkCard);
-          }}
-        >
-          <Star className={`h-4 w-4 ${forkCard.has_starred ? "fill-current" : ""}`} />
+        <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 text-sm font-semibold text-text-muted">
+          <Star className={`h-4 w-4 ${forkCard.has_starred ? "fill-current text-brand" : ""}`} />
           {forkCard.star_count}
-        </Button>
-      </div>
-
-      <p className="mt-3 line-clamp-3 text-sm leading-6 text-text-muted">
-        {forkCard.markdown_content.replace(/\s+/g, " ").trim() || "No markdown content yet."}
-      </p>
-
-      <div className="mt-4 flex flex-wrap items-center gap-2">
+        </span>
         {currentUserId && forkCard.user_id === currentUserId ? (
           <Button
             type="button"
@@ -1172,14 +1228,9 @@ export function PdfForkEditor({
               handleEditFork(forkCard);
             }}
           >
-            Edit fork
+            Edit
           </Button>
         ) : null}
-        <Button asChild size="sm" variant="outline">
-          <Link href={`/forks?forkId=${forkCard.id}&materialSlug=${materialSlug}`}>
-            Open fork
-          </Link>
-        </Button>
       </div>
     </div>
   );
@@ -1201,15 +1252,19 @@ export function PdfForkEditor({
 
     const pdfPreview = pdfPreviews[href] ?? { status: "loading" };
     const lockPdfInteractions = tool !== "pan";
+    const pageBaseWidth = pageWrapperElement?.clientWidth ?? 760;
+    const zoomedStageWidth = pdfStageSize.width > 0 ? pdfStageSize.width * pdfZoom : "100%";
+    const zoomedStageHeight = pdfStageSize.height > 0 ? pdfStageSize.height * pdfZoom : undefined;
 
     return (
-      <div key={`pdf-editor-${index}`} className="mb-6 rounded-[28px] border border-border bg-[#08131f] p-5">
-        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+      <div key={`pdf-editor-${index}`} className="mb-3 rounded-2xl border border-border bg-[#08131f] p-2 sm:mb-6 sm:rounded-[28px] sm:p-5">
+        <div className="mb-2 flex flex-wrap items-start justify-between gap-2 sm:mb-4 sm:gap-3">
           <div>
             <p className="text-sm font-semibold text-foreground">{label}</p>
             <p className="text-sm text-text-muted">PDF attachment rendered inline where this link appears.</p>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-[auto_auto_auto] sm:items-center sm:justify-end">
+            <div className="flex w-full items-center justify-center gap-1 sm:w-auto sm:justify-end sm:gap-2">
             <Button
               type="button"
               size="sm"
@@ -1278,6 +1333,8 @@ export function PdfForkEditor({
             >
               <Eraser className="h-4 w-4" />
             </Button>
+            </div>
+            <div className="flex w-full justify-center sm:w-auto">
             <div className="flex items-center gap-1 rounded-full border border-border bg-surface px-2 py-1" aria-label="Annotation colors">
               {annotationColors.map((color) => (
                 <button
@@ -1291,6 +1348,33 @@ export function PdfForkEditor({
                 />
               ))}
             </div>
+            </div>
+            <div className="flex w-full items-center justify-center gap-1 sm:w-auto sm:justify-end sm:gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-9 w-9 p-0"
+              onClick={() => changePdfZoom(-pdfZoomStep)}
+              disabled={pdfZoom <= minPdfZoom}
+              aria-label="Zoom out"
+              title="Zoom out"
+            >
+              <ZoomOut className="h-4 w-4" />
+            </Button>
+            <span className="min-w-12 text-center text-sm text-text-muted">{Math.round(pdfZoom * 100)}%</span>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-9 w-9 p-0"
+              onClick={() => changePdfZoom(pdfZoomStep)}
+              disabled={pdfZoom >= maxPdfZoom}
+              aria-label="Zoom in"
+              title="Zoom in"
+            >
+              <ZoomIn className="h-4 w-4" />
+            </Button>
             <Button
               type="button"
               size="sm"
@@ -1313,16 +1397,24 @@ export function PdfForkEditor({
               →
             </Button>
           </div>
+          </div>
         </div>
 
         <div
-          className={`relative rounded-[28px] border border-white/10 bg-[#09101b] p-4 ${
+          className={`relative rounded-2xl border border-white/10 bg-[#09101b] p-1 sm:rounded-[28px] sm:p-4 ${
             lockPdfInteractions
               ? "[&_.react-pdf__Page__textContent]:pointer-events-none [&_.react-pdf__Page__textContent]:select-none [&_.react-pdf__Page__textContent_*]:pointer-events-none [&_.react-pdf__Page__textContent_*]:select-none"
               : ""
           }`}
         >
-          <div ref={setPageWrapperElement} className="relative overflow-hidden rounded-[24px] bg-[#0b1421]">
+          <div
+            ref={setPageWrapperElement}
+            className="relative overflow-auto rounded-xl bg-[#0b1421] sm:rounded-[24px]"
+            onTouchStart={handlePdfTouchStart}
+            onTouchMove={handlePdfTouchMove}
+            onTouchEnd={handlePdfTouchEnd}
+            onTouchCancel={handlePdfTouchEnd}
+          >
             {pdfPreview.status === "loading" ? (
               <div className="flex h-72 items-center justify-center text-white/60">
                 <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
@@ -1341,43 +1433,60 @@ export function PdfForkEditor({
                 </a>
               </div>
             ) : (
-              <>
-                <Document
-                  file={pdfPreview.url}
-                  loading={
-                    <div className="flex h-72 items-center justify-center text-white/60">
-                      <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                      Loading PDF...
-                    </div>
-                  }
-                  error={
-                    <div className="flex h-72 items-center justify-center px-6 text-center text-sm text-white/60">
-                      PDF preview is unavailable. Open the original link instead.
-                    </div>
-                  }
-                  onLoadSuccess={({ numPages: pages }) => {
-                    setNumPages(pages);
-                  }}
-                  onLoadError={() => {
-                    setError("PDF preview is unavailable. The file may have been moved, deleted, or blocked by the host.");
+              <div
+                className="relative"
+                style={{
+                  width: zoomedStageWidth,
+                  height: zoomedStageHeight,
+                  minWidth: "100%",
+                }}
+              >
+                <div
+                  ref={setPdfStageElement}
+                  className="relative"
+                  style={{
+                    width: pageBaseWidth,
+                    transform: `scale(${pdfZoom})`,
+                    transformOrigin: "top left",
                   }}
                 >
-                  <Page
-                    pageNumber={pageNumber}
-                    width={pageWrapperElement?.clientWidth ?? 760}
-                    renderAnnotationLayer={false}
-                    renderTextLayer={true}
+                  <Document
+                    file={pdfPreview.url}
+                    loading={
+                      <div className="flex h-72 items-center justify-center text-white/60">
+                        <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                        Loading PDF...
+                      </div>
+                    }
+                    error={
+                      <div className="flex h-72 items-center justify-center px-6 text-center text-sm text-white/60">
+                        PDF preview is unavailable. Open the original link instead.
+                      </div>
+                    }
+                    onLoadSuccess={({ numPages: pages }) => {
+                      setNumPages(pages);
+                    }}
+                    onLoadError={() => {
+                      setError("PDF preview is unavailable. The file may have been moved, deleted, or blocked by the host.");
+                    }}
+                  >
+                    <Page
+                      pageNumber={pageNumber}
+                      width={pageBaseWidth}
+                      renderAnnotationLayer={false}
+                      renderTextLayer={true}
+                    />
+                  </Document>
+                  <div
+                    ref={setCanvasHostElement}
+                    className="absolute inset-0 z-20 pointer-events-auto"
+                    style={{
+                      touchAction: "none",
+                      userSelect: lockPdfInteractions ? "none" : undefined,
+                    }}
                   />
-                </Document>
-                <canvas
-                  ref={setCanvasElement}
-                  className="absolute inset-0 pointer-events-auto"
-                  style={{
-                    touchAction: "none",
-                    userSelect: lockPdfInteractions ? "none" : undefined,
-                  }}
-                />
-              </>
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -1428,28 +1537,30 @@ export function PdfForkEditor({
   };
 
   return (
-    <div className="rounded-[32px] border border-border bg-surface p-6">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="rounded-[24px] border border-border bg-surface p-3 sm:rounded-[32px] sm:p-6">
+      <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div>
           <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Fork workspace</p>
           <h2 className="mt-2 text-2xl text-foreground">Live markdown fork editor</h2>
         </div>
-        <Button type="button" size="sm" variant="default" onClick={handleCreateFork} disabled={loadingFork || savingMarkdown}>
-          {showEditor ? "Open fork editor" : "Create new fork"}
-        </Button>
+        {!showEditor ? (
+          <Button type="button" size="sm" variant="default" onClick={handleCreateFork} disabled={loadingFork || savingMarkdown}>
+            Create new fork
+          </Button>
+        ) : null}
       </div>
 
       {error ? <p className="mb-4 rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">{error}</p> : null}
 
       {!showEditor ? (
-        <div className="rounded-[24px] border border-border bg-background p-4">
+        <div className="rounded-[20px] border border-border bg-background p-3 sm:rounded-[24px] sm:p-4">
           <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Start editing</p>
           <p className="mt-2 text-sm text-text-muted">Click “Create new fork” to open the full-width editor, manage attachments, and edit the markdown live.</p>
         </div>
       ) : null}
 
       {showEditor ? (
-        <div className="rounded-[32px] border border-border bg-background p-6">
+        <div className="rounded-[24px] border border-border bg-background p-3 sm:rounded-[32px] sm:p-6">
           <input
             ref={fileInputRef}
             type="file"
@@ -1495,17 +1606,42 @@ export function PdfForkEditor({
               </Button>
 
               <Button type="button" variant="default" onClick={handleSaveMarkdown} disabled={savingMarkdown || loadingFork}>
-                {savingMarkdown ? "Saving draft..." : "Save markdown"}
+                {savingMarkdown ? "Saving draft..." : "Save fork"}
               </Button>
             </div>
           </div>
 
+          <div className="mt-4 space-y-3 rounded-[20px] border border-border bg-surface p-3 sm:mt-6 sm:space-y-4 sm:rounded-[24px] sm:p-4">
+            <div>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Title</p>
+                <p className="text-xs font-medium text-text-soft">Required</p>
+              </div>
+              <Textarea
+                className="mt-3 min-h-16 border border-border bg-background"
+                value={forkTitle}
+                onChange={(event) => setForkTitle(event.target.value)}
+                placeholder="Add a title for this fork..."
+                aria-required="true"
+              />
+            </div>
+            <div>
+              <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Description</p>
+              <Textarea
+                className="mt-3 min-h-24 border border-border bg-background"
+                value={forkDescription}
+                onChange={(event) => setForkDescription(event.target.value)}
+                placeholder="Add a short optional description for this fork..."
+              />
+            </div>
+          </div>
+
           {editorMode === "edit" ? (
-            <div className="mt-6">
-              <div className="rounded-[24px] border border-border bg-surface p-4">
+            <div className="mt-4 sm:mt-6">
+              <div className="rounded-[20px] border border-border bg-surface p-2 sm:rounded-[24px] sm:p-4">
                 <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Rendered fork</p>
                 <p className="mt-2 text-sm text-text-muted">Edit directly in this rendered view. PDF and image attachments render inline, and the close button removes the attachment link from the markdown.</p>
-                <div className="mt-4">
+                <div className="mt-2 sm:mt-4">
                   <MarkdownRenderer
                     markdown={markdown}
                     editable
@@ -1517,7 +1653,7 @@ export function PdfForkEditor({
               </div>
             </div>
           ) : (
-            <div className="mt-6 rounded-[24px] border border-border bg-surface p-4">
+            <div className="mt-4 rounded-[20px] border border-border bg-surface p-3 sm:mt-6 sm:rounded-[24px] sm:p-4">
               <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Raw markdown</p>
               <p className="mt-2 text-sm text-text-muted">Edit the source directly when you need exact markdown control.</p>
               <Textarea

@@ -56,6 +56,8 @@ export function EmbeddedPdfViewer({
   const [fabric, setFabric] = useState<FabricModule | null>(null);
   const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(null);
   const [pageWrapperElement, setPageWrapperElement] = useState<HTMLDivElement | null>(null);
+  const [renderedPageNumber, setRenderedPageNumber] = useState<number | null>(null);
+  const [pageWidth, setPageWidth] = useState(0);
   const canvasSize = useRef({ width: 0, height: 0 });
   const canvasInstanceRef = useRef<FabricCanvas | null>(null);
 
@@ -207,14 +209,43 @@ export function EmbeddedPdfViewer({
     resize();
 
     return () => observer.disconnect();
-  }, [pageNumber, pageWrapperElement]);
+  }, [pageNumber, renderedPageNumber, pageWrapperElement]);
 
   useEffect(() => {
-    const canvas = canvasInstanceRef.current;
-    if (!canvas) {
+    const pageWrapper = pageWrapperElement;
+    if (!pageWrapper) {
       return;
     }
 
+    const updatePageWidth = () => {
+      const nextWidth = Math.floor(pageWrapper.getBoundingClientRect().width);
+      if (nextWidth > 0) {
+        setPageWidth((currentWidth) => (currentWidth === nextWidth ? currentWidth : nextWidth));
+      }
+    };
+
+    const observer = new ResizeObserver(() => updatePageWidth());
+    observer.observe(pageWrapper);
+    updatePageWidth();
+
+    return () => observer.disconnect();
+  }, [pageWrapperElement]);
+
+  useEffect(() => {
+    const canvas = canvasInstanceRef.current;
+    const pageWrapper = pageWrapperElement;
+    if (!canvas || !pageWrapper || renderedPageNumber !== pageNumber) {
+      return;
+    }
+
+    const rect = pageWrapper.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) {
+      return;
+    }
+
+    canvas.setWidth(rect.width);
+    canvas.setHeight(rect.height);
+    canvasSize.current = { width: rect.width, height: rect.height };
     canvas.clear();
     const objects = annotationLayers?.[pageNumber] ?? [];
     if (objects.length === 0) {
@@ -225,13 +256,14 @@ export function EmbeddedPdfViewer({
     canvas.loadFromJSON({ objects }, () => {
       canvas.renderAll();
     });
-  }, [annotationLayers, pageNumber, canvasElement, fabric]);
+  }, [annotationLayers, pageNumber, renderedPageNumber, pageWrapperElement, canvasElement, fabric]);
 
   function jumpToPage(nextPage: number) {
     if (numPages === 0) {
       return;
     }
     const targetPage = Math.min(numPages, Math.max(1, nextPage));
+    setRenderedPageNumber(null);
     setPageNumber(targetPage);
     setPageInput(`${targetPage}`);
   }
@@ -323,7 +355,7 @@ export function EmbeddedPdfViewer({
             <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
             Loading PDF...
           </div>
-        ) : resolvedFile ? (
+        ) : resolvedFile && pageWidth > 0 ? (
           <Document
             file={resolvedFile}
             loading={
@@ -346,11 +378,17 @@ export function EmbeddedPdfViewer({
           >
             <Page
               pageNumber={pageNumber}
-              width={pageWrapperElement?.clientWidth ?? 760}
+              width={pageWidth}
               renderAnnotationLayer={false}
               renderTextLayer
+              onRenderSuccess={() => setRenderedPageNumber(pageNumber)}
             />
           </Document>
+        ) : resolvedFile ? (
+          <div className="flex h-72 items-center justify-center text-white/60">
+            <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+            Preparing PDF...
+          </div>
         ) : (
           <div className="flex h-72 items-center justify-center px-6 text-center text-sm text-white/60">
             Preview unavailable for this PDF.

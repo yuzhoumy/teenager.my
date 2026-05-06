@@ -127,6 +127,7 @@ export type Database = {
           user_id: string;
           material_id: string;
           source_url: string;
+          description: string | null;
           markdown_content: string;
           annotation_layers: Json | null;
           is_pinned: boolean;
@@ -139,6 +140,7 @@ export type Database = {
           user_id: string;
           material_id: string;
           source_url: string;
+          description?: string | null;
           markdown_content: string;
           annotation_layers?: Json | null;
           is_pinned?: boolean;

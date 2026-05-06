@@ -12,6 +12,7 @@ alter table public.pending_materials add column if not exists content_markdown t
 alter table public.pending_materials add column if not exists author_name text;
 
 alter table public.user_forks add column if not exists markdown_content text;
+alter table public.user_forks add column if not exists description text;
 alter table public.user_forks add column if not exists annotation_layers jsonb;
 alter table public.user_forks add column if not exists is_pinned boolean not null default false;
 alter table public.user_forks add column if not exists pinned_title text;
