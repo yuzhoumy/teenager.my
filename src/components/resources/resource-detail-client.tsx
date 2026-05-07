@@ -203,11 +203,6 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
                 </p>
               ) : null}
             </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <ResourceStarButton materialId={displayMaterial.id} />
-              <Button type="button" size="sm" variant="default" onClick={() => setCurrentTab("fork")}>Fork</Button>
-            </div>
           </div>
 
           <div className="mt-6 grid gap-3 border-t border-border pt-5 text-sm text-text-muted sm:grid-cols-2 xl:grid-cols-5">

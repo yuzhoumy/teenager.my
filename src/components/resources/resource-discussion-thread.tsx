@@ -178,17 +178,18 @@ export function ResourceDiscussionThread({ materialId }: { materialId: string })
           )}
         </div>
 
-        <div className="space-y-3 rounded-[24px] border border-border bg-[#fbfaf5] p-4">
-          <h3 className="text-xl text-foreground">Add to thread</h3>
+        <div className="space-y-3 rounded-[20px] border border-border bg-surface/70 p-4">
+          <h3 className="text-lg text-foreground">Add to thread</h3>
           <Textarea
             ref={composerRef}
             rows={6}
             value={body}
             onChange={(event) => setBody(event.target.value)}
+            className="border-border bg-background/50"
             placeholder="Ask a question, share context, or point out something helpful."
           />
           {error ? <p className="text-sm text-rose-600">{error}</p> : null}
-          <Button type="button" onClick={handleSubmit} disabled={submitting}>
+          <Button type="button" variant="secondary" onClick={handleSubmit} disabled={submitting}>
             {submitting ? "Posting..." : "Post Discussion"}
           </Button>
         </div>
