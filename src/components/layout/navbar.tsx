@@ -81,7 +81,7 @@ export function Navbar() {
           <Link href="/search" className="text-sm text-text-muted hover:text-foreground">
             Resources
           </Link>
-          <Link href="/resources/upload" className="inline-flex items-center gap-2 text-sm font-semibold text-brand hover:text-brand-soft">
+          <Link href={isLoggedIn ? "/resources/upload" : "/login"} className="inline-flex items-center gap-2 text-sm font-semibold text-brand hover:text-brand-soft">
             <Upload className="h-4 w-4" />
             Upload resource
           </Link>

@@ -1111,19 +1111,15 @@ export function PdfForkEditor({
   };
 
   const handleCreateFork = async () => {
-    setShowEditor(true);
-    setEditorMode("edit");
     setError("");
-    setFork(null);
-    setForkTitle("");
-    setForkDescription("");
-    setMarkdown(initialMarkdown);
-    setAnnotationLayers({});
-    setPageNumber(1);
 
     try {
       await createNewFork();
+      setEditorMode("edit");
+      setShowEditor(true);
+      setPageNumber(1);
     } catch (createError) {
+      setShowEditor(false);
       setError(createError instanceof Error ? createError.message : "Unable to start your fork.");
     }
   };

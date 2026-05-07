@@ -63,7 +63,7 @@ export function MobileBottomNav() {
             <BookOpen className="h-4 w-4" />
             Resources
           </Link>
-          <Link href="/resources/upload" className="flex flex-col items-center gap-1 rounded-2xl py-2 text-xs text-text-muted">
+          <Link href={isLoggedIn ? "/resources/upload" : "/login"} className="flex flex-col items-center gap-1 rounded-2xl py-2 text-xs text-text-muted">
             <Upload className="h-4 w-4" />
             Upload
           </Link>
