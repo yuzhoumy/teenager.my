@@ -1,4 +1,5 @@
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { createProfileNameMap, type ProfileNameRow } from "@/lib/profile-names";
 import type { MaterialCoreType, MaterialGrade, MaterialTag } from "@/types/database";
 import type { StudyMaterial } from "@/types/resource";
 
@@ -29,10 +30,6 @@ export type MaterialFacets = {
 };
 
 type MaterialFacetRow = Pick<StudyMaterial, "grade" | "core_type" | "subject" | "category_tags" | "origin">;
-type ProfileNameRow = {
-  user_id: string;
-  display_name: string;
-};
 
 export const materialGrades: MaterialGrade[] = ["f1", "f2", "f3", "f4", "f5"];
 export const materialCoreTypes: MaterialCoreType[] = ["exercise", "note"];
@@ -191,9 +188,7 @@ async function withCurrentUploaderNames(materials: StudyMaterial[]) {
     return materials;
   }
 
-  const profileNames = new Map(
-    ((data ?? []) as ProfileNameRow[]).map((profile) => [profile.user_id, profile.display_name]),
-  );
+  const profileNames = createProfileNameMap((data ?? []) as ProfileNameRow[]);
 
   return materials.map((material) => ({
     ...material,

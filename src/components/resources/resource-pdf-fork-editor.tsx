@@ -7,6 +7,7 @@ import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/TextLayer.css";
 import { Eraser, Highlighter, LoaderCircle, MousePointer2, PenTool, Star, TextCursorInput, Upload, X, ZoomIn, ZoomOut } from "lucide-react";
 import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { createProfileNameMap, type ProfileNameRow } from "@/lib/profile-names";
 import type { Database } from "@/types/database";
 import type { ForkCardData, ForkStar, UserFork } from "@/types/resource";
 import { Button } from "@/components/ui/button";
@@ -416,18 +417,11 @@ export function PdfForkEditor({
         supabase.from("fork_stars").select("*").in("fork_id", forkIds),
       ]);
 
-      if (profilesError) {
-        throw profilesError;
-      }
-
       if (starsError) {
         throw starsError;
       }
 
-      const profileRows = (profilesData ?? []) as Array<{ user_id: string; display_name: string }>;
-      const profilesByUserId = new Map(
-        profileRows.map((profile) => [profile.user_id, profile.display_name]),
-      );
+      const profilesByUserId = createProfileNameMap((profilesError ? [] : (profilesData ?? [])) as ProfileNameRow[]);
       const stars = (starsData ?? []) as ForkStar[];
 
       setForkCards(
@@ -1155,6 +1149,10 @@ export function PdfForkEditor({
   };
 
   const handleRemovePdf = (index: number) => {
+    if (!window.confirm("Do you really want to remove this attachment?")) {
+      return;
+    }
+
     setMarkdown((current) => removePdfLinkByIndex(current, index));
   };
 
@@ -1562,6 +1560,25 @@ export function PdfForkEditor({
     );
   };
 
+  const editorModeToggle = (
+    <div className="inline-flex rounded-full border border-border bg-surface p-1">
+      {(["edit", "raw"] as const).map((mode) => (
+        <button
+          key={mode}
+          type="button"
+          className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+            editorMode === mode
+              ? "bg-foreground text-background"
+              : "text-text-muted hover:text-foreground"
+          }`}
+          onClick={() => setEditorMode(mode)}
+        >
+          {mode === "edit" ? "Edit" : "Raw"}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div className="min-w-0 max-w-full overflow-hidden rounded-[24px] border border-border bg-surface p-3 sm:rounded-[32px] sm:p-6">
       <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
@@ -1601,23 +1618,6 @@ export function PdfForkEditor({
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <div className="inline-flex rounded-full border border-border bg-surface p-1">
-                {(["edit", "raw"] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                      editorMode === mode
-                        ? "bg-foreground text-background"
-                        : "text-text-muted hover:text-foreground"
-                    }`}
-                    onClick={() => setEditorMode(mode)}
-                  >
-                    {mode === "edit" ? "Edit" : "Raw"}
-                  </button>
-                ))}
-              </div>
-
               <span className="rounded-full bg-surface-strong px-3 py-1 text-xs font-semibold text-text-muted">
                 {pdfLinks.length} PDF link{pdfLinks.length === 1 ? "" : "s"}
               </span>
@@ -1665,7 +1665,10 @@ export function PdfForkEditor({
           {editorMode === "edit" ? (
             <div className="mt-4 sm:mt-6">
               <div className="min-w-0 max-w-full overflow-hidden rounded-[20px] border border-border bg-surface p-2 sm:rounded-[24px] sm:p-4">
-                <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Rendered fork</p>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Rendered fork</p>
+                  {editorModeToggle}
+                </div>
                 <p className="mt-2 text-sm text-text-muted">Edit directly in this rendered view. PDF and image attachments render inline, and the close button removes the attachment link from the markdown.</p>
                 <div className="mt-2 min-w-0 max-w-full sm:mt-4">
                   <MarkdownRenderer
@@ -1680,7 +1683,10 @@ export function PdfForkEditor({
             </div>
           ) : (
             <div className="mt-4 rounded-[20px] border border-border bg-surface p-3 sm:mt-6 sm:rounded-[24px] sm:p-4">
-              <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Raw markdown</p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Raw markdown</p>
+                {editorModeToggle}
+              </div>
               <p className="mt-2 text-sm text-text-muted">Edit the source directly when you need exact markdown control.</p>
               <Textarea
                 className="mt-4 min-h-[620px] border border-border bg-[#0e1118] text-white"

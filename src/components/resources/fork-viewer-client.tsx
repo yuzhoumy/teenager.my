@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft, LoaderCircle, Star } from "lucide-react";
 import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { getProfileDisplayName, type ProfileNameRow } from "@/lib/profile-names";
 import type { Database } from "@/types/database";
 import type { ForkCardData, ForkStar, StudyMaterial, UserFork } from "@/types/resource";
 import { MarkdownRenderer } from "@/components/resources/markdown-renderer";
@@ -77,10 +78,6 @@ export function ForkViewerClient() {
           throw materialError;
         }
 
-        if (profileError) {
-          throw profileError;
-        }
-
         if (starsError) {
           throw starsError;
         }
@@ -88,10 +85,10 @@ export function ForkViewerClient() {
         if (cancelled) return;
 
         const stars = (starsData ?? []) as ForkStar[];
-        const typedProfile = profileData as { display_name: string } | null;
+        const typedProfile = profileError ? null : (profileData as ProfileNameRow | null);
         setFork({
           ...typedFork,
-          author_name: typedProfile?.display_name ?? "Anonymous student",
+          author_name: getProfileDisplayName(typedProfile, "Anonymous student"),
           star_count: stars.length,
           has_starred: Boolean(user?.id && stars.some((star) => star.user_id === user.id)),
         });
@@ -180,11 +177,10 @@ export function ForkViewerClient() {
   };
 
   const renderPdfLink = (href: string, label: string, index: number) => (
-    <div key={`fork-pdf-${index}`} className="-mx-2 w-auto min-w-0 max-w-[calc(100vw-1rem)] space-y-3 overflow-hidden border border-[#172033] bg-[#08131f] p-2 sm:mx-0 sm:max-w-full sm:space-y-4 sm:rounded-[28px] sm:border-border sm:p-5">
-      <div className="flex min-w-0 max-w-full flex-wrap items-center justify-between gap-3">
+    <div key={`fork-pdf-${index}`} className="relative left-1/2 w-[calc(100vw-10px)] max-w-[calc(100vw-10px)] -translate-x-1/2 space-y-[5px] overflow-hidden rounded-[14px] border border-[#172033] bg-[#08131f] p-[5px] sm:left-auto sm:w-auto sm:max-w-full sm:translate-x-0 sm:space-y-4 sm:rounded-[28px] sm:border-border sm:p-5">
+      <div className="flex min-w-0 max-w-full flex-wrap items-center justify-between gap-[5px] sm:gap-3">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground">{label}</p>
-          <p className="text-sm text-text-muted">PDF attachment included in this fork.</p>
         </div>
       </div>
       <EmbeddedPdfViewer
@@ -236,7 +232,7 @@ export function ForkViewerClient() {
         Back to resource
       </Link>
 
-      <Card className="min-w-0 max-w-full overflow-hidden rounded-[32px] border-border-strong bg-surface-strong p-6">
+      <div className="min-w-0 max-w-full overflow-visible p-0 sm:overflow-hidden sm:rounded-[32px] sm:border sm:border-border-strong sm:bg-surface-strong sm:p-6 sm:shadow-[0_4px_24px_var(--shadow)]">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Fork viewer</p>
@@ -259,20 +255,20 @@ export function ForkViewerClient() {
         {error ? <p className="mt-4 rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">{error}</p> : null}
 
         {fork.description?.trim() ? (
-          <div className="mt-6 min-w-0 max-w-full rounded-[24px] border border-border bg-background p-5">
+          <div className="mt-[5px] min-w-0 max-w-full bg-transparent p-0 sm:mt-6 sm:rounded-[24px] sm:border sm:border-border sm:bg-background sm:p-5">
             <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Fork description</p>
             <p className="mt-3 text-sm leading-7 text-text-muted">{fork.description}</p>
           </div>
         ) : null}
 
-        <div className="mt-6 min-w-0 max-w-full overflow-hidden rounded-[24px] border border-border bg-background p-5">
+        <div className="mt-[5px] min-w-0 max-w-full overflow-visible bg-transparent p-0 sm:mt-6 sm:overflow-hidden sm:rounded-[24px] sm:border sm:border-border sm:bg-background sm:p-5">
           <MarkdownRenderer
             markdown={fork.markdown_content}
             renderPdfLink={(href, label, index) => (isPdfLink(href) ? renderPdfLink(href, label, index) : null)}
             renderImageLink={(href, label, index) => (isImageLink(href) ? renderImageLink(href, label, index) : null)}
           />
         </div>
-      </Card>
+      </div>
     </section>
   );
 }

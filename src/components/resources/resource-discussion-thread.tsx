@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { MessageSquareText } from "lucide-react";
 import type { DiscussionPost } from "@/types/resource";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { createProfileNameMap, type ProfileNameRow } from "@/lib/profile-names";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -27,8 +28,7 @@ async function attachAuthors(posts: DiscussionPost[]) {
     .select("user_id, display_name")
     .in("user_id", userIds);
 
-  const typedProfiles = (profiles ?? []) as Array<{ user_id: string; display_name: string }>;
-  const authorNames = new Map(typedProfiles.map((profile) => [profile.user_id, profile.display_name]));
+  const authorNames = createProfileNameMap((profiles ?? []) as ProfileNameRow[]);
 
   return posts.map((post) => ({
     ...post,

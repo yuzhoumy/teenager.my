@@ -316,8 +316,8 @@ export function EmbeddedPdfViewer({
   const viewerPixelRatio = Math.min(3, Math.max(devicePixelRatio, 2));
 
   return (
-    <div className="min-w-0 max-w-full overflow-hidden bg-[#09101b] p-0 sm:rounded-[28px] sm:border sm:border-white/10 sm:p-4">
-      <div className="mb-2 flex min-w-0 max-w-full flex-col gap-3 sm:mb-4 lg:flex-row lg:items-center lg:justify-between">
+    <div className="min-w-0 max-w-full overflow-hidden rounded-[14px] bg-[#09101b] p-[5px] sm:rounded-[28px] sm:border sm:border-white/10 sm:p-4">
+      <div className="mb-[5px] flex min-w-0 max-w-full flex-col gap-[5px] sm:mb-4 sm:gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" size="sm" variant="ghost" className="h-9 w-9 p-0" onClick={() => jumpToPage(1)} disabled={pageNumber <= 1}>
             <ChevronsLeft className="h-4 w-4" />
@@ -401,12 +401,12 @@ export function EmbeddedPdfViewer({
         </div>
       </div>
 
-      {error ? <p className="mb-4 rounded-xl border border-rose-400/30 bg-rose-400/10 px-3 py-2 text-sm text-rose-200">{error}</p> : null}
+      {error ? <p className="mb-[5px] rounded-xl border border-rose-400/30 bg-rose-400/10 px-[5px] py-[5px] text-sm text-rose-200 sm:mb-4 sm:px-3 sm:py-2">{error}</p> : null}
 
       <div ref={setPageMeasureElement} className="h-0 w-full min-w-0 max-w-full overflow-hidden" aria-hidden="true" />
 
       <div
-        className="relative w-full min-w-0 max-w-full overflow-auto border border-[#172033] bg-[#0b1421] sm:rounded-[24px]"
+        className="relative w-full min-w-0 max-w-full overflow-auto rounded-[12px] border border-[#172033] bg-[#0b1421] sm:rounded-[24px]"
         style={{ contain: "layout paint", maxHeight: "78vh" }}
       >
         {loadingFile ? (

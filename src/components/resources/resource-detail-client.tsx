@@ -10,6 +10,7 @@ import {
   getMaterialTagLabel,
 } from "@/lib/materials";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { createProfileNameMap, type ProfileNameRow } from "@/lib/profile-names";
 import type { PinnedFork, ResourcePdfLink, StudyMaterial, UserFork } from "@/types/resource";
 import { ResourceDiscussionThread } from "@/components/resources/resource-discussion-thread";
 import { ResourceSidebar } from "@/components/resources/resource-sidebar";
@@ -17,7 +18,6 @@ import { PdfForkEditor } from "@/components/resources/resource-pdf-fork-editor";
 import { MarkdownRenderer } from "@/components/resources/markdown-renderer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 
 const EmbeddedPdfViewer = dynamic(
   () => import("@/components/resources/embedded-pdf-viewer").then((module) => module.EmbeddedPdfViewer),
@@ -42,13 +42,50 @@ function extractPdfLinks(markdown: string) {
 }
 
 export function ResourceDetailClient({ material }: { material: StudyMaterial }) {
+  const [displayMaterial, setDisplayMaterial] = useState(material);
   const [currentTab, setCurrentTab] = useState<TabKey>("resource");
   const [pinnedForks, setPinnedForks] = useState<PinnedFork[]>([]);
   const [loadingPinnedForks, setLoadingPinnedForks] = useState(false);
   const [pinnedForksError, setPinnedForksError] = useState("");
 
-  const pdfLinks = useMemo(() => extractPdfLinks(material.content_markdown), [material.content_markdown]);
+  const pdfLinks = useMemo(() => extractPdfLinks(displayMaterial.content_markdown), [displayMaterial.content_markdown]);
   const primaryPdf = pdfLinks[0] ?? null;
+
+  useEffect(() => {
+    setDisplayMaterial(material);
+  }, [material]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCurrentUploaderName() {
+      if (!isSupabaseConfigured || !material.uploaded_by) {
+        return;
+      }
+
+      const { data: profileRow, error: profileError } = await supabase
+        .from("profiles")
+        .select("display_name")
+        .eq("user_id", material.uploaded_by)
+        .maybeSingle();
+
+      const typedProfile = profileError ? null : (profileRow as Pick<ProfileNameRow, "display_name"> | null);
+      const displayName = typedProfile?.display_name?.trim() ?? "";
+      if (!cancelled && displayName) {
+        setDisplayMaterial((currentMaterial) =>
+          currentMaterial.id === material.id
+            ? { ...currentMaterial, author_name: displayName }
+            : currentMaterial,
+        );
+      }
+    }
+
+    void loadCurrentUploaderName();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [material.id, material.uploaded_by]);
 
   useEffect(() => {
     let cancelled = false;
@@ -88,13 +125,7 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
           .select("user_id, display_name")
           .in("user_id", userIds);
 
-        if (profileError) {
-          throw profileError;
-        }
-
-        const profileMap = new Map(
-          ((profileRows ?? []) as Array<{ user_id: string; display_name: string }>).map((profile) => [profile.user_id, profile.display_name]),
-        );
+        const profileMap = createProfileNameMap((profileError ? [] : (profileRows ?? [])) as ProfileNameRow[]);
 
         if (!cancelled) {
           setPinnedForks(
@@ -124,11 +155,10 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
   }, [material.id]);
 
   const renderEmbeddedPdfLink = (href: string, label: string, index: number, prefix: string) => (
-    <div key={`${prefix}-pdf-${index}`} className="-mx-2 w-auto min-w-0 max-w-[calc(100vw-1rem)] space-y-3 overflow-hidden border border-[#172033] bg-[#08131f] p-2 sm:mx-0 sm:max-w-full sm:space-y-4 sm:rounded-[28px] sm:border-border sm:p-5">
-      <div className="flex min-w-0 max-w-full flex-wrap items-center justify-between gap-3">
+    <div key={`${prefix}-pdf-${index}`} className="relative left-1/2 w-[calc(100vw-10px)] max-w-[calc(100vw-10px)] -translate-x-1/2 space-y-[5px] overflow-hidden rounded-[14px] border border-[#172033] bg-[#08131f] p-[5px] sm:left-auto sm:w-auto sm:max-w-full sm:translate-x-0 sm:space-y-4 sm:rounded-[28px] sm:border-border sm:p-5">
+      <div className="flex min-w-0 max-w-full flex-wrap items-center justify-between gap-[5px] sm:gap-3">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground">{label}</p>
-          <p className="text-sm text-text-muted">PDF attachment embedded inside the resource.</p>
         </div>
         <Button asChild size="sm" variant="outline">
           <a href={href} target="_blank" rel="noreferrer" download>
@@ -147,19 +177,19 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
         Back to resources
       </Link>
 
-      <Card className="min-w-0 max-w-full overflow-hidden rounded-[32px] border-border-strong bg-surface-strong p-0 lg:overflow-visible">
-        <div className="border-b border-border bg-gradient-to-br from-surface via-background to-surface-muted px-6 py-6 sm:px-8">
+      <div className="min-w-0 max-w-full overflow-visible p-0 sm:overflow-hidden sm:rounded-[32px] sm:border sm:border-border-strong sm:bg-surface-strong sm:shadow-[0_4px_24px_var(--shadow)] lg:overflow-visible">
+        <div className="border-b border-border px-[5px] py-[5px] sm:bg-gradient-to-br sm:from-surface sm:via-background sm:to-surface-muted sm:px-8 sm:py-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-4xl">
-              <p className="text-sm uppercase tracking-[0.18em] text-text-soft">README-style resource</p>
-              <h1 className="mt-3 text-4xl text-foreground sm:text-5xl">{material.title}</h1>
+              <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Resource viewer</p>
+              <h1 className="mt-3 text-4xl text-foreground sm:text-5xl">{displayMaterial.title}</h1>
               <p className="mt-4 max-w-3xl text-base text-text-muted">
                 Read the markdown like a project README, then view or fork the document inside a tabbed workspace.
               </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <Badge className="bg-[#f3ebe4] text-brand">{getMaterialCoreTypeLabel(material.core_type)}</Badge>
+              <Badge className="bg-[#f3ebe4] text-brand">{getMaterialCoreTypeLabel(displayMaterial.core_type)}</Badge>
               <Button type="button" size="sm" variant="default" onClick={() => setCurrentTab("fork")}>Fork</Button>
             </div>
           </div>
@@ -167,25 +197,25 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
           <div className="mt-6 grid gap-3 border-t border-border pt-5 text-sm text-text-muted sm:grid-cols-2 xl:grid-cols-5">
             <span className="inline-flex items-center gap-2">
               <GraduationCap className="h-4 w-4 text-brand" />
-              {getMaterialGradeLabel(material.grade)}
+              {getMaterialGradeLabel(displayMaterial.grade)}
             </span>
             <span className="inline-flex items-center gap-2">
               <Tag className="h-4 w-4 text-brand" />
-              {material.subject}
+              {displayMaterial.subject}
             </span>
             <span className="inline-flex items-center gap-2">
               <UserRound className="h-4 w-4 text-brand" />
-              {material.uploaded_by ? (
-                <Link href={`/users?userId=${material.uploaded_by}`} className="hover:text-foreground">
-                  {material.author_name}
+              {displayMaterial.uploaded_by ? (
+                <Link href={`/users?userId=${displayMaterial.uploaded_by}`} className="hover:text-foreground">
+                  {displayMaterial.author_name}
                 </Link>
               ) : (
-                material.author_name
+                displayMaterial.author_name
               )}
             </span>
             <span className="inline-flex items-center gap-2">
               <CalendarDays className="h-4 w-4 text-brand" />
-              {material.year}
+              {displayMaterial.year}
             </span>
             <span className="inline-flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-brand" />
@@ -193,16 +223,16 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
             </span>
           </div>
 
-          {material.category_tags.length > 0 ? (
+          {displayMaterial.category_tags.length > 0 ? (
             <div className="mt-4 flex flex-wrap gap-2">
-              {material.category_tags.map((tag) => (
+              {displayMaterial.category_tags.map((tag) => (
                 <Badge key={tag}>{getMaterialTagLabel(tag)}</Badge>
               ))}
             </div>
           ) : null}
         </div>
 
-        <div className="border-b border-border px-6 py-5 sm:px-8">
+        <div className="border-b border-border px-[5px] py-[5px] sm:px-8 sm:py-5">
           <div className="flex flex-wrap gap-2">
             {([
               { key: "resource" as const, label: "Resource" },
@@ -225,26 +255,44 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
           </div>
         </div>
 
-        <div className="min-w-0 max-w-full px-2 py-3 sm:px-8 sm:py-6">
+        <div className="min-w-0 max-w-full px-[5px] py-[5px] sm:px-8 sm:py-6">
           {currentTab === "resource" ? (
             <div className="grid min-w-0 max-w-full gap-0 lg:grid-cols-[minmax(0,7fr)_minmax(280px,3fr)] lg:items-start">
               <article className="min-w-0 border-b border-border pb-6 lg:border-b-0 lg:border-r lg:pr-8">
                 <div className="mx-auto min-w-0 max-w-none">
                   <div className="prose-reset markdown-readme min-w-0 max-w-full">
                     <MarkdownRenderer
-                      markdown={material.content_markdown}
+                      markdown={displayMaterial.content_markdown}
                       renderPdfLink={(href, label, index) => renderEmbeddedPdfLink(href, label, index, "resource")}
                     />
                   </div>
 
+                  {pinnedForks.length > 0 ? (
+                    <nav className="mt-[10px] rounded-[14px] border border-border bg-surface p-[5px] shadow-[0_4px_18px_var(--shadow)] lg:hidden" aria-label="Pinned forks">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-soft">Pinned forks</p>
+                      <div className="mt-[5px] divide-y divide-border">
+                        {pinnedForks.map((fork, index) => (
+                          <a
+                            key={fork.id}
+                            href={`#pinned-fork-${fork.id}`}
+                            className="block rounded-xl px-[5px] py-[7px] text-sm font-semibold text-foreground transition hover:bg-surface-strong hover:text-brand"
+                          >
+                            {fork.pinned_title?.trim() || `Pinned fork ${index + 1}`}
+                            <span className="mt-1 block text-xs font-normal text-text-muted">By {fork.author_name}</span>
+                          </a>
+                        ))}
+                      </div>
+                    </nav>
+                  ) : null}
+
                   {loadingPinnedForks ? (
-                    <div className="mt-8 rounded-[24px] border border-border bg-surface p-5 text-sm text-text-muted">
+                    <div className="mt-[10px] border-y border-border py-[5px] text-sm text-text-muted sm:mt-8 sm:rounded-[24px] sm:border sm:bg-surface sm:p-5">
                       Loading pinned forks...
                     </div>
                   ) : null}
 
                   {pinnedForksError ? (
-                    <div className="mt-8 rounded-[24px] border border-rose-400/30 bg-rose-400/10 p-5 text-sm text-rose-200">
+                    <div className="mt-[10px] border-y border-rose-400/30 bg-rose-400/10 py-[5px] text-sm text-rose-200 sm:mt-8 sm:rounded-[24px] sm:border sm:p-5">
                       {pinnedForksError}
                     </div>
                   ) : null}
@@ -253,9 +301,9 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
                     <section
                       key={fork.id}
                       id={`pinned-fork-${fork.id}`}
-                      className="mt-8 min-w-0 max-w-full overflow-hidden rounded-[28px] border border-border bg-background p-6 scroll-mt-24"
+                      className="mt-[10px] min-w-0 max-w-full border-t border-border bg-transparent pt-[10px] scroll-mt-24 sm:mt-8 sm:rounded-[28px] sm:border sm:border-border sm:bg-background sm:p-6"
                     >
-                      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+                      <div className="mb-[5px] flex flex-wrap items-start justify-between gap-[5px] sm:mb-5 sm:gap-3">
                         <div>
                           <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Pinned fork</p>
                           <h2 className="mt-2 text-3xl text-foreground">
@@ -288,13 +336,13 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
               materialId={material.id}
               materialSlug={material.slug}
               sourceUrl={primaryPdf?.href ?? ""}
-              initialMarkdown={material.content_markdown}
+              initialMarkdown={displayMaterial.content_markdown}
             />
           ) : (
             <ResourceDiscussionThread materialId={material.id} />
           )}
         </div>
-      </Card>
+      </div>
     </section>
   );
 }

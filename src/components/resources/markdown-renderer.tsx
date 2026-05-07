@@ -1,4 +1,4 @@
-import type { FocusEvent, ReactNode } from "react";
+import { useEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type ReactNode } from "react";
 
 type AttachmentRenderCallback = (href: string, label: string, index: number) => ReactNode;
 
@@ -93,6 +93,13 @@ function parseBlocks(markdown: string) {
 
 function stringifyBlocks(blocks: ParsedBlock[]) {
   return blocks
+    .filter((block) => {
+      if (block.kind === "list") {
+        return block.items.length > 0;
+      }
+
+      return block.text.trim().length > 0;
+    })
     .map((block) => {
       if (block.kind === "heading") {
         return `${"#".repeat(block.level)} ${block.text}`.trimEnd();
@@ -102,7 +109,7 @@ function stringifyBlocks(blocks: ParsedBlock[]) {
         return block.text;
       }
 
-      return block.items.map((item) => `- ${item}`.trimEnd()).join("\n");
+      return block.items.filter((item) => item.trim().length > 0).map((item) => `- ${item}`.trimEnd()).join("\n");
     })
     .join("\n\n");
 }
@@ -185,6 +192,82 @@ function isEditableText(children: ReactNode[]) {
   return !hasBlockElement(children);
 }
 
+function splitEditableLines(text: string) {
+  return text
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function EditableMarkdownTextarea({
+  className,
+  editId,
+  value,
+  rows,
+  onCommit,
+  onSplit,
+  onFinish,
+}: {
+  className: string;
+  editId: string;
+  value: string;
+  rows: number;
+  onCommit: (nextText: string) => void;
+  onSplit?: (beforeText: string, afterText: string) => void;
+  onFinish?: () => void;
+}) {
+  const [draft, setDraft] = useState(value);
+  const focusedRef = useRef(false);
+  const skipNextBlurCommitRef = useRef(false);
+
+  useEffect(() => {
+    if (!focusedRef.current) {
+      setDraft(value);
+    }
+  }, [value]);
+
+  return (
+    <textarea
+      data-markdown-edit-id={editId}
+      className={className}
+      value={draft}
+      rows={Math.max(rows, draft.split("\n").length)}
+      onFocus={() => {
+        focusedRef.current = true;
+      }}
+      onChange={(event) => setDraft(event.currentTarget.value)}
+      onKeyDown={(event: KeyboardEvent<HTMLTextAreaElement>) => {
+        if (event.key !== "Enter" || event.shiftKey || !onSplit) {
+          return;
+        }
+
+        event.preventDefault();
+        skipNextBlurCommitRef.current = true;
+        const selectionStart = event.currentTarget.selectionStart;
+        const selectionEnd = event.currentTarget.selectionEnd;
+        const beforeText = draft.slice(0, selectionStart);
+        const afterText = draft.slice(selectionEnd);
+        onSplit(beforeText, afterText);
+      }}
+      onBlur={(event: FocusEvent<HTMLTextAreaElement>) => {
+        focusedRef.current = false;
+        if (skipNextBlurCommitRef.current) {
+          skipNextBlurCommitRef.current = false;
+          return;
+        }
+
+        const nextText = event.currentTarget.value;
+        if (nextText !== value) {
+          onCommit(nextText);
+        }
+
+        onFinish?.();
+      }}
+    />
+  );
+}
+
 export function MarkdownRenderer({
   markdown,
   editable = false,
@@ -192,7 +275,66 @@ export function MarkdownRenderer({
   renderPdfLink,
   renderImageLink,
 }: MarkdownRendererProps) {
-  const blocks = parseBlocks(markdown);
+  const parsedBlocks = parseBlocks(markdown);
+  const [editableBlocks, setEditableBlocks] = useState<ParsedBlock[]>(parsedBlocks);
+  const [activeEditId, setActiveEditId] = useState<string | null>(null);
+  const activeEditIdRef = useRef<string | null>(null);
+  const pendingFocusPositionRef = useRef<"start" | "end">("end");
+  const committedMarkdownRef = useRef(markdown);
+
+  useEffect(() => {
+    if (markdown === committedMarkdownRef.current) {
+      return;
+    }
+
+    committedMarkdownRef.current = markdown;
+    setEditableBlocks(parseBlocks(markdown));
+  }, [markdown]);
+
+  useEffect(() => {
+    if (!activeEditId) {
+      return;
+    }
+
+    const textarea = document.querySelector<HTMLTextAreaElement>(`[data-markdown-edit-id="${activeEditId}"]`);
+    if (!textarea) {
+      return;
+    }
+
+    const position = pendingFocusPositionRef.current;
+    pendingFocusPositionRef.current = "end";
+    const cursorPosition = position === "start" ? 0 : textarea.value.length;
+    textarea.focus();
+    textarea.setSelectionRange(cursorPosition, cursorPosition);
+  }, [activeEditId, editableBlocks]);
+
+  const blocks = editable && onMarkdownChange ? editableBlocks : parsedBlocks;
+
+  function activateEditId(editId: string, position: "start" | "end" = "end") {
+    pendingFocusPositionRef.current = position;
+    activeEditIdRef.current = editId;
+    setActiveEditId(editId);
+  }
+
+  function deactivateEditId(editId: string) {
+    if (activeEditIdRef.current !== editId) {
+      return;
+    }
+
+    activeEditIdRef.current = null;
+    setActiveEditId(null);
+  }
+
+  function commitBlocks(nextBlocks: ParsedBlock[]) {
+    if (!onMarkdownChange) {
+      return;
+    }
+
+    const nextMarkdown = stringifyBlocks(nextBlocks);
+    committedMarkdownRef.current = nextMarkdown;
+    setEditableBlocks(nextBlocks);
+    onMarkdownChange(nextMarkdown);
+  }
 
   function updateBlock(blockIndex: number, updater: (block: ParsedBlock) => ParsedBlock) {
     if (!onMarkdownChange) {
@@ -200,7 +342,101 @@ export function MarkdownRenderer({
     }
 
     const nextBlocks = blocks.map((block, index) => (index === blockIndex ? updater(block) : block));
-    onMarkdownChange(stringifyBlocks(nextBlocks));
+    commitBlocks(nextBlocks);
+  }
+
+  function replaceBlock(blockIndex: number, nextBlocksForIndex: ParsedBlock[], focusEditId?: string) {
+    if (!onMarkdownChange) {
+      return;
+    }
+
+    if (focusEditId) {
+      activateEditId(focusEditId, "start");
+    }
+
+    const nextBlocks = blocks.flatMap((block, index) => (index === blockIndex ? nextBlocksForIndex : [block]));
+    commitBlocks(nextBlocks);
+  }
+
+  function commitTextBlock(blockIndex: number, block: ParsedBlock, nextText: string) {
+    const lines = splitEditableLines(nextText);
+
+    if (lines.length === 0) {
+      replaceBlock(blockIndex, []);
+      return;
+    }
+
+    if (lines.length <= 1) {
+      updateBlock(blockIndex, (currentBlock) => {
+        if (currentBlock.kind === "heading") {
+          return { ...currentBlock, text: lines[0] };
+        }
+
+        if (currentBlock.kind === "paragraph") {
+          return { ...currentBlock, text: lines[0] };
+        }
+
+        return currentBlock;
+      });
+      return;
+    }
+
+    const nextBlocksForIndex: ParsedBlock[] =
+      block.kind === "heading"
+        ? [
+            { ...block, text: lines[0] },
+            ...lines.slice(1).map((line): ParsedBlock => ({ kind: "paragraph", text: line })),
+          ]
+        : lines.map((line): ParsedBlock => ({ kind: "paragraph", text: line }));
+
+    replaceBlock(blockIndex, nextBlocksForIndex, `block-${blockIndex + 1}`);
+  }
+
+  function splitTextBlock(blockIndex: number, block: ParsedBlock, beforeText: string, afterText: string) {
+    const beforeLine = beforeText.trim();
+    const afterLine = afterText.trim();
+    const nextBlocksForIndex: ParsedBlock[] = [];
+
+    if (block.kind === "heading") {
+      nextBlocksForIndex.push({ ...block, text: beforeLine });
+      nextBlocksForIndex.push({ kind: "paragraph", text: afterLine });
+      replaceBlock(blockIndex, nextBlocksForIndex, `block-${blockIndex + 1}`);
+      return;
+    }
+
+    if (beforeLine) {
+      nextBlocksForIndex.push({ kind: "paragraph", text: beforeLine });
+    }
+
+    nextBlocksForIndex.push({ kind: "paragraph", text: afterLine });
+    replaceBlock(blockIndex, nextBlocksForIndex, `block-${blockIndex + (beforeLine ? 1 : 0)}`);
+  }
+
+  function splitListItem(blockIndex: number, itemIndex: number, beforeText: string, afterText: string) {
+    const beforeLine = beforeText.trim();
+    const afterLine = afterText.trim();
+    let focusIndex = itemIndex;
+
+    const nextBlocks = blocks.map((block, index) => {
+      if (index !== blockIndex || block.kind !== "list") {
+        return block;
+      }
+
+      const nextItems = block.items.flatMap((item, currentIndex) => {
+        if (currentIndex !== itemIndex) {
+          return [item];
+        }
+
+        const replacementItems = beforeLine ? [beforeLine, afterLine] : [afterLine];
+        focusIndex = currentIndex + (beforeLine ? 1 : 0);
+        return replacementItems;
+      });
+
+      return { ...block, items: nextItems };
+    });
+
+    activateEditId(`list-${blockIndex}-${focusIndex}`, "start");
+    commitBlocks(nextBlocks);
   }
 
   function renderEditableTextBlock(
@@ -226,30 +462,43 @@ export function MarkdownRenderer({
       );
     }
 
+    const editId = `block-${blockIndex}`;
+    const Tag = block.kind === "heading"
+      ? (block.level === 1 ? "h1" : block.level === 2 ? "h2" : "h3")
+      : "p";
+
+    if (activeEditId !== editId) {
+      return (
+        <Tag
+          key={`block-${blockIndex}`}
+          className={`${className} min-h-8 cursor-text rounded-xl px-2 py-1 transition hover:bg-surface-strong`}
+          role="button"
+          tabIndex={0}
+          onClick={() => activateEditId(editId)}
+          onKeyDown={(event: KeyboardEvent<HTMLElement>) => {
+            if (event.key !== "Enter" && event.key !== " ") {
+              return;
+            }
+
+            event.preventDefault();
+            activateEditId(editId);
+          }}
+        >
+          {children.length > 0 ? children : <span className="text-text-soft">Start typing...</span>}
+        </Tag>
+      );
+    }
+
     return (
-      <textarea
-        key={`block-${blockIndex}-${editableText}`}
+      <EditableMarkdownTextarea
+        key={`block-${blockIndex}`}
+        editId={editId}
         className={`${className} block w-full resize-y rounded-xl border border-transparent bg-transparent px-2 py-1 outline-none transition hover:bg-surface-strong focus:border-border focus:bg-surface-strong focus:ring-2 focus:ring-focus`}
-        defaultValue={editableText}
+        value={editableText}
         rows={block.kind === "heading" ? 1 : Math.max(2, Math.ceil(editableText.length / 90))}
-        onBlur={(event: FocusEvent<HTMLTextAreaElement>) => {
-          const nextText = event.currentTarget.value;
-          if (nextText === editableText) {
-            return;
-          }
-
-          updateBlock(blockIndex, (currentBlock) => {
-            if (currentBlock.kind === "heading") {
-              return { ...currentBlock, text: nextText };
-            }
-
-            if (currentBlock.kind === "paragraph") {
-              return { ...currentBlock, text: nextText };
-            }
-
-            return currentBlock;
-          });
-        }}
+        onCommit={(nextText) => commitTextBlock(blockIndex, block, nextText)}
+        onSplit={(beforeText, afterText) => splitTextBlock(blockIndex, block, beforeText, afterText)}
+        onFinish={() => deactivateEditId(editId)}
       />
     );
   }
@@ -302,28 +551,51 @@ export function MarkdownRenderer({
               key={`item-${itemIndex}`}
               className="rounded-xl px-2 py-1 transition hover:bg-surface-strong"
             >
-              <textarea
-                className="block w-full resize-y rounded-lg border border-transparent bg-transparent px-2 py-1 text-base leading-7 text-text-muted outline-none focus:border-border focus:bg-surface-strong focus:ring-2 focus:ring-focus"
-                defaultValue={item}
-                rows={1}
-                onBlur={(event: FocusEvent<HTMLTextAreaElement>) => {
-                  const nextText = event.currentTarget.value;
-                  if (nextText === item) {
-                    return;
-                  }
+              {activeEditId === `list-${blockIndex}-${itemIndex}` ? (
+                <EditableMarkdownTextarea
+                  editId={`list-${blockIndex}-${itemIndex}`}
+                  className="block w-full resize-y rounded-lg border border-transparent bg-transparent px-2 py-1 text-base leading-7 text-text-muted outline-none focus:border-border focus:bg-surface-strong focus:ring-2 focus:ring-focus"
+                  value={item}
+                  rows={1}
+                  onSplit={(beforeText, afterText) => splitListItem(blockIndex, itemIndex, beforeText, afterText)}
+                  onCommit={(nextText) => {
+                    const nextItemsFromText = splitEditableLines(nextText);
 
-                  updateBlock(blockIndex, (currentBlock) => {
-                    if (currentBlock.kind !== "list") {
-                      return currentBlock;
+                    updateBlock(blockIndex, (currentBlock) => {
+                      if (currentBlock.kind !== "list") {
+                        return currentBlock;
+                      }
+
+                      const nextItems = currentBlock.items.flatMap((currentItem, currentIndex) => {
+                        if (currentIndex !== itemIndex) {
+                          return [currentItem];
+                        }
+
+                        return nextItemsFromText.length > 0 ? nextItemsFromText : [];
+                      });
+                      return { ...currentBlock, items: nextItems };
+                    });
+                  }}
+                  onFinish={() => deactivateEditId(`list-${blockIndex}-${itemIndex}`)}
+                />
+              ) : (
+                <div
+                  className="min-h-7 cursor-text rounded-lg px-2 py-1 transition hover:bg-surface-strong"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => activateEditId(`list-${blockIndex}-${itemIndex}`)}
+                  onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
+                    if (event.key !== "Enter" && event.key !== " ") {
+                      return;
                     }
 
-                    const nextItems = currentBlock.items.map((currentItem, currentIndex) =>
-                      currentIndex === itemIndex ? nextText : currentItem,
-                    );
-                    return { ...currentBlock, items: nextItems };
-                  });
-                }}
-              />
+                    event.preventDefault();
+                    activateEditId(`list-${blockIndex}-${itemIndex}`);
+                  }}
+                >
+                  {children.length > 0 ? children : <span className="text-text-soft">Start typing...</span>}
+                </div>
+              )}
             </li>
           );
         })}
