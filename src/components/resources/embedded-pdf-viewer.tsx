@@ -9,7 +9,14 @@ import { Button } from "@/components/ui/button";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@5.4.296/build/pdf.worker.min.mjs`;
 
-type AnnotationLayerMap = Record<number, unknown[]>;
+type SavedLayerValue =
+  | unknown[]
+  | {
+      objects?: unknown[];
+      width?: number;
+      height?: number;
+    };
+type AnnotationLayerMap = Record<number, SavedLayerValue>;
 type FabricObject = {
   scaleX: number;
   scaleY: number;
@@ -37,9 +44,26 @@ type FabricModule = {
 const minViewerZoom = 0.75;
 const maxViewerZoom = 3;
 const viewerZoomStep = 0.15;
+const legacyAnnotationLayerWidth = 760;
 
 function clampViewerZoom(value: number) {
   return Math.min(maxViewerZoom, Math.max(minViewerZoom, Number(value.toFixed(2))));
+}
+
+function normalizeSavedLayer(value: SavedLayerValue | undefined) {
+  if (!value) {
+    return { objects: [] as unknown[], width: null as number | null, height: null as number | null };
+  }
+
+  if (Array.isArray(value)) {
+    return { objects: value, width: legacyAnnotationLayerWidth, height: null };
+  }
+
+  return {
+    objects: Array.isArray(value.objects) ? value.objects : [],
+    width: typeof value.width === "number" ? value.width : null,
+    height: typeof value.height === "number" ? value.height : null,
+  };
 }
 
 export function EmbeddedPdfViewer({
@@ -64,15 +88,51 @@ export function EmbeddedPdfViewer({
   const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(null);
   const [pageWrapperElement, setPageWrapperElement] = useState<HTMLDivElement | null>(null);
   const [renderedPageNumber, setRenderedPageNumber] = useState<number | null>(null);
+  const [pdfCanvasRect, setPdfCanvasRect] = useState({ left: 0, top: 0, width: 0, height: 0 });
   const [pageWidth, setPageWidth] = useState(0);
   const [pageAspectRatio, setPageAspectRatio] = useState(4 / 3);
   const [zoom, setZoom] = useState(1);
   const [devicePixelRatio, setDevicePixelRatio] = useState(1);
   const canvasSize = useRef({ width: 0, height: 0 });
   const canvasInstanceRef = useRef<FabricCanvas | null>(null);
+  const annotationLayersRef = useRef<AnnotationLayerMap | null | undefined>(annotationLayers);
+  const pageNumberRef = useRef(pageNumber);
+  const renderedPageNumberRef = useRef<number | null>(renderedPageNumber);
   const pageWidthRef = useRef(0);
   const pageAspectRatioRef = useRef(4 / 3);
   const [pageMeasureElement, setPageMeasureElement] = useState<HTMLDivElement | null>(null);
+
+  annotationLayersRef.current = annotationLayers;
+  pageNumberRef.current = pageNumber;
+  renderedPageNumberRef.current = renderedPageNumber;
+
+  function restoreAnnotationLayer(canvas: FabricCanvas, width: number, height: number) {
+    canvas.clear();
+    const savedLayer = normalizeSavedLayer(annotationLayersRef.current?.[pageNumberRef.current]);
+    if (savedLayer.objects.length === 0) {
+      canvas.renderAll();
+      return;
+    }
+
+    canvas.loadFromJSON({ objects: savedLayer.objects }, () => {
+      const scaleX = savedLayer.width && savedLayer.width > 0 ? width / savedLayer.width : 1;
+      const scaleY = savedLayer.height && savedLayer.height > 0
+        ? height / savedLayer.height
+        : savedLayer.width && savedLayer.width > 0
+          ? scaleX
+          : 1;
+      if (scaleX !== 1 || scaleY !== 1) {
+        canvas.getObjects().forEach((object) => {
+          object.scaleX *= scaleX;
+          object.scaleY *= scaleY;
+          object.left *= scaleX;
+          object.top *= scaleY;
+          object.setCoords();
+        });
+      }
+      canvas.renderAll();
+    });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -169,7 +229,6 @@ export function EmbeddedPdfViewer({
 
     if (lowerCanvasElement) {
       lowerCanvasElement.style.position = "absolute";
-      lowerCanvasElement.style.inset = "0";
       lowerCanvasElement.style.width = "100%";
       lowerCanvasElement.style.height = "100%";
       lowerCanvasElement.style.background = "transparent";
@@ -197,29 +256,33 @@ export function EmbeddedPdfViewer({
     }
 
     const resize = () => {
-      const width = pageWrapper.offsetWidth;
-      const height = pageWrapper.offsetHeight;
+      const pdfCanvas = pageWrapper.querySelector<HTMLCanvasElement>(".react-pdf__Page__canvas");
+      const width = Math.round(pdfCanvas?.offsetWidth ?? pageWrapper.offsetWidth);
+      const height = Math.round(pdfCanvas?.offsetHeight ?? pageWrapper.offsetHeight);
       if (width === 0 || height === 0) {
         return;
       }
-
-      const widthRatio = width / (canvasSize.current.width || width);
-      const heightRatio = height / (canvasSize.current.height || height);
-      const scale = Math.min(widthRatio || 1, heightRatio || 1);
-      if (canvasSize.current.width > 0 && scale !== 1) {
-        canvas.getObjects().forEach((obj) => {
-          obj.scaleX *= scale;
-          obj.scaleY *= scale;
-          obj.left *= scale;
-          obj.top *= scale;
-          obj.setCoords();
-        });
-      }
+      const nextRect = {
+        left: Math.round(pdfCanvas?.offsetLeft ?? 0),
+        top: Math.round(pdfCanvas?.offsetTop ?? 0),
+        width,
+        height,
+      };
+      setPdfCanvasRect((currentRect) =>
+        currentRect.left === nextRect.left &&
+        currentRect.top === nextRect.top &&
+        currentRect.width === nextRect.width &&
+        currentRect.height === nextRect.height
+          ? currentRect
+          : nextRect,
+      );
 
       canvas.setWidth(width);
       canvas.setHeight(height);
       canvasSize.current = { width, height };
-      canvas.renderAll();
+      if (renderedPageNumberRef.current === pageNumberRef.current) {
+        restoreAnnotationLayer(canvas, width, height);
+      }
     };
 
     const observer = new ResizeObserver(() => resize());
@@ -264,19 +327,28 @@ export function EmbeddedPdfViewer({
       return;
     }
 
-    canvas.setWidth(width);
-    canvas.setHeight(height);
-    canvasSize.current = { width, height };
-    canvas.clear();
-    const objects = annotationLayers?.[pageNumber] ?? [];
-    if (objects.length === 0) {
-      canvas.renderAll();
-      return;
-    }
+    const pdfCanvas = pageWrapper.querySelector<HTMLCanvasElement>(".react-pdf__Page__canvas");
+    const canvasWidth = Math.round(pdfCanvas?.offsetWidth ?? width);
+    const canvasHeight = Math.round(pdfCanvas?.offsetHeight ?? height);
+    const nextRect = {
+      left: Math.round(pdfCanvas?.offsetLeft ?? 0),
+      top: Math.round(pdfCanvas?.offsetTop ?? 0),
+      width: canvasWidth,
+      height: canvasHeight,
+    };
+    setPdfCanvasRect((currentRect) =>
+      currentRect.left === nextRect.left &&
+      currentRect.top === nextRect.top &&
+      currentRect.width === nextRect.width &&
+      currentRect.height === nextRect.height
+        ? currentRect
+        : nextRect,
+    );
 
-    canvas.loadFromJSON({ objects }, () => {
-      canvas.renderAll();
-    });
+    canvas.setWidth(canvasWidth);
+    canvas.setHeight(canvasHeight);
+    canvasSize.current = { width: canvasWidth, height: canvasHeight };
+    restoreAnnotationLayer(canvas, canvasWidth, canvasHeight);
   }, [annotationLayers, pageNumber, renderedPageNumber, pageWrapperElement, canvasElement, fabric]);
 
   function jumpToPage(nextPage: number) {
@@ -467,8 +539,14 @@ export function EmbeddedPdfViewer({
               </Document>
               <canvas
                 ref={setCanvasElement}
-                className="absolute inset-0 pointer-events-none"
-                style={{ touchAction: "none" }}
+                className="absolute pointer-events-none"
+                style={{
+                  left: pdfCanvasRect.left,
+                  top: pdfCanvasRect.top,
+                  width: pdfCanvasRect.width || "100%",
+                  height: pdfCanvasRect.height || "100%",
+                  touchAction: "none",
+                }}
               />
             </div>
           </div>

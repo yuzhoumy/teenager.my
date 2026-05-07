@@ -16,7 +16,14 @@ import { MarkdownRenderer } from "@/components/resources/markdown-renderer";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@5.4.296/build/pdf.worker.min.mjs`;
 
-type AnnotationLayerMap = Record<number, unknown[]>;
+type SavedLayerValue =
+  | unknown[]
+  | {
+      objects?: unknown[];
+      width?: number;
+      height?: number;
+    };
+type AnnotationLayerMap = Record<number, SavedLayerValue>;
 type Tool = "pan" | "pen" | "highlight" | "text";
 type EditorMode = "edit" | "raw";
 type CommunitySort = "latest" | "highest-star";
@@ -27,6 +34,7 @@ type PdfPreviewState =
 const minPdfZoom = 0.75;
 const maxPdfZoom = 2.5;
 const pdfZoomStep = 0.15;
+const legacyAnnotationLayerWidth = 760;
 type FabricObject = {
   scaleX: number;
   scaleY: number;
@@ -100,7 +108,7 @@ type ForkSummary = {
   source_url: string;
   description: string | null;
   markdown_content: string;
-  annotation_layers: Record<number, unknown[]> | null;
+  annotation_layers: AnnotationLayerMap | null;
   is_pinned: boolean;
   pinned_title: string | null;
   pinned_order: number;
@@ -120,6 +128,22 @@ function hexToRgba(hex: string, alpha: number) {
 
 function clampPdfZoom(value: number) {
   return Math.min(maxPdfZoom, Math.max(minPdfZoom, Number(value.toFixed(2))));
+}
+
+function normalizeSavedLayer(value: SavedLayerValue | undefined) {
+  if (!value) {
+    return { objects: [] as unknown[], width: null as number | null, height: null as number | null };
+  }
+
+  if (Array.isArray(value)) {
+    return { objects: value, width: legacyAnnotationLayerWidth, height: null };
+  }
+
+  return {
+    objects: Array.isArray(value.objects) ? value.objects : [],
+    width: typeof value.width === "number" ? value.width : null,
+    height: typeof value.height === "number" ? value.height : null,
+  };
 }
 
 function getTouchDistance(touches: { item: (index: number) => { clientX: number; clientY: number } | null }) {
@@ -297,6 +321,7 @@ export function PdfForkEditor({
   const [canvasHostElement, setCanvasHostElement] = useState<HTMLDivElement | null>(null);
   const [pageWrapperElement, setPageWrapperElement] = useState<HTMLDivElement | null>(null);
   const [pdfStageElement, setPdfStageElement] = useState<HTMLDivElement | null>(null);
+  const [pdfCanvasRect, setPdfCanvasRect] = useState({ left: 0, top: 0, width: 0, height: 0 });
 
   const myForks = useMemo(
     () => forkCards.filter((forkCard) => currentUserId && forkCard.user_id === currentUserId),
@@ -625,7 +650,11 @@ export function PdfForkEditor({
     const currentPage = pageNumberRef.current;
     const nextLayers = {
       ...annotationLayersRef.current,
-      [currentPage]: objects,
+      [currentPage]: {
+        objects,
+        width: canvas.getWidth(),
+        height: canvas.getHeight(),
+      },
     };
 
     annotationLayersRef.current = nextLayers;
@@ -644,7 +673,8 @@ export function PdfForkEditor({
 
     const nextCanvas = document.createElement("canvas");
     nextCanvas.style.position = "absolute";
-    nextCanvas.style.inset = "0";
+    nextCanvas.style.left = "0";
+    nextCanvas.style.top = "0";
     nextCanvas.style.touchAction = "none";
     nextCanvas.style.userSelect = "none";
     nextCanvas.style.pointerEvents = "auto";
@@ -687,7 +717,6 @@ export function PdfForkEditor({
 
     if (wrapperElement) {
       wrapperElement.style.position = "absolute";
-      wrapperElement.style.inset = "0";
       wrapperElement.style.width = "100%";
       wrapperElement.style.height = "100%";
       wrapperElement.style.zIndex = "20";
@@ -696,7 +725,6 @@ export function PdfForkEditor({
 
     if (lowerCanvasElement) {
       lowerCanvasElement.style.position = "absolute";
-      lowerCanvasElement.style.inset = "0";
       lowerCanvasElement.style.width = "100%";
       lowerCanvasElement.style.height = "100%";
       lowerCanvasElement.style.background = "transparent";
@@ -704,7 +732,6 @@ export function PdfForkEditor({
 
     if (upperCanvasElement) {
       upperCanvasElement.style.position = "absolute";
-      upperCanvasElement.style.inset = "0";
       upperCanvasElement.style.width = "100%";
       upperCanvasElement.style.height = "100%";
       upperCanvasElement.style.background = "transparent";
@@ -799,11 +826,26 @@ export function PdfForkEditor({
       const canvas = canvasInstanceRef.current;
       if (!pdfStage || !canvas) return;
 
-      const width = pdfStage.offsetWidth;
-      const height = pdfStage.offsetHeight;
+      const pdfCanvas = pdfStage.querySelector<HTMLCanvasElement>(".react-pdf__Page__canvas");
+      const width = Math.round(pdfCanvas?.offsetWidth ?? pdfStage.offsetWidth);
+      const height = Math.round(pdfCanvas?.offsetHeight ?? pdfStage.offsetHeight);
       if (width === 0 || height === 0) {
         return;
       }
+      const nextRect = {
+        left: Math.round(pdfCanvas?.offsetLeft ?? 0),
+        top: Math.round(pdfCanvas?.offsetTop ?? 0),
+        width,
+        height,
+      };
+      setPdfCanvasRect((currentRect) =>
+        currentRect.left === nextRect.left &&
+        currentRect.top === nextRect.top &&
+        currentRect.width === nextRect.width &&
+        currentRect.height === nextRect.height
+          ? currentRect
+          : nextRect,
+      );
 
       const widthRatio = width / (canvasSize.current.width || width);
       const heightRatio = height / (canvasSize.current.height || height);
@@ -864,14 +906,31 @@ export function PdfForkEditor({
 
     restoringCanvasRef.current = true;
     canvas.clear();
-    const objects = annotationLayersRef.current[pageNumber] ?? [];
-    if (objects.length === 0) {
+    const savedLayer = normalizeSavedLayer(annotationLayersRef.current[pageNumber]);
+    if (savedLayer.objects.length === 0) {
       canvas.renderAll();
       restoringCanvasRef.current = false;
       return;
     }
 
-    canvas.loadFromJSON({ objects }, () => {
+    canvas.loadFromJSON({ objects: savedLayer.objects }, () => {
+      const canvasWidth = canvas.getWidth();
+      const canvasHeight = canvas.getHeight();
+      const scaleX = savedLayer.width && savedLayer.width > 0 ? canvasWidth / savedLayer.width : 1;
+      const scaleY = savedLayer.height && savedLayer.height > 0
+        ? canvasHeight / savedLayer.height
+        : savedLayer.width && savedLayer.width > 0
+          ? scaleX
+          : 1;
+      if (scaleX !== 1 || scaleY !== 1) {
+        canvas.getObjects().forEach((object) => {
+          object.scaleX *= scaleX;
+          object.scaleY *= scaleY;
+          object.left *= scaleX;
+          object.top *= scaleY;
+          object.setCoords();
+        });
+      }
       canvas.renderAll();
       restoringCanvasRef.current = false;
     });
@@ -1503,8 +1562,12 @@ export function PdfForkEditor({
                   </Document>
                   <div
                     ref={setCanvasHostElement}
-                    className="absolute inset-0 z-20 pointer-events-auto"
+                    className="absolute z-20 pointer-events-auto"
                     style={{
+                      left: pdfCanvasRect.left,
+                      top: pdfCanvasRect.top,
+                      width: pdfCanvasRect.width || "100%",
+                      height: pdfCanvasRect.height || "100%",
                       touchAction: "none",
                       userSelect: lockPdfInteractions ? "none" : undefined,
                     }}

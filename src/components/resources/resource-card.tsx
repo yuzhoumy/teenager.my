@@ -129,6 +129,12 @@ export function ResourceCard({ material }: { material: StudyMaterial }) {
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
+        {material.has_solution ? (
+          <Badge className="bg-emerald-400/10 text-emerald-700">
+            <Check className="h-3.5 w-3.5" />
+            Solution provided
+          </Badge>
+        ) : null}
         {material.category_tags.map((tag) => (
           <Badge key={tag} className="bg-surface-muted">
             {getMaterialTagLabel(tag)}

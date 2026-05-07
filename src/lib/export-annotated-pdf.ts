@@ -4,6 +4,8 @@ import { pdfjs } from "react-pdf";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@5.4.296/build/pdf.worker.min.mjs`;
 
+const legacyAnnotationLayerWidth = 760;
+
 type SavedLayerValue =
   | unknown[]
   | {
@@ -64,7 +66,7 @@ function normalizeSavedLayer(value: SavedLayerValue | undefined) {
   }
 
   if (Array.isArray(value)) {
-    return { objects: value, width: null, height: null };
+    return { objects: value, width: legacyAnnotationLayerWidth, height: null };
   }
 
   return {
@@ -124,7 +126,11 @@ async function renderOverlayCanvas({
   });
 
   const scaleX = savedWidth && savedWidth > 0 ? outputWidth / savedWidth : 1;
-  const scaleY = savedHeight && savedHeight > 0 ? outputHeight / savedHeight : 1;
+  const scaleY = savedHeight && savedHeight > 0
+    ? outputHeight / savedHeight
+    : savedWidth && savedWidth > 0
+      ? scaleX
+      : 1;
   if (scaleX !== 1 || scaleY !== 1) {
     fabricCanvas.getObjects().forEach((object) => {
       object.scaleX *= scaleX;

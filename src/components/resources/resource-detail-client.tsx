@@ -10,7 +10,7 @@ import {
 } from "@/lib/materials";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { createProfileNameMap, type ProfileNameRow } from "@/lib/profile-names";
-import type { PinnedFork, ResourcePdfLink, StudyMaterial, UserFork } from "@/types/resource";
+import type { PinnedFork, ResourcePdfLink, SavedAnnotationLayer, StudyMaterial, UserFork } from "@/types/resource";
 import { ResourceDiscussionThread } from "@/components/resources/resource-discussion-thread";
 import { ResourceSidebar } from "@/components/resources/resource-sidebar";
 import { PdfForkEditor } from "@/components/resources/resource-pdf-fork-editor";
@@ -153,7 +153,13 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
     };
   }, [material.id]);
 
-  const renderEmbeddedPdfLink = (href: string, label: string, index: number, prefix: string) => (
+  const renderEmbeddedPdfLink = (
+    href: string,
+    label: string,
+    index: number,
+    prefix: string,
+    annotationLayers?: Record<number, SavedAnnotationLayer> | null,
+  ) => (
     <div key={`${prefix}-pdf-${index}`} className="relative left-1/2 w-[calc(100vw-10px)] max-w-[calc(100vw-10px)] -translate-x-1/2 space-y-[5px] overflow-hidden rounded-[14px] border border-[#172033] bg-[#08131f] p-[5px] sm:left-auto sm:w-auto sm:max-w-full sm:translate-x-0 sm:space-y-4 sm:rounded-[28px] sm:border-border sm:p-5">
       <div className="flex min-w-0 max-w-full flex-wrap items-center justify-between gap-[5px] sm:gap-3">
         <div className="min-w-0">
@@ -165,7 +171,12 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
           </a>
         </Button>
       </div>
-      <EmbeddedPdfViewer file={href} />
+      <EmbeddedPdfViewer
+        file={href}
+        annotationLayers={annotationLayers}
+        enableAnnotatedDownload={annotationLayers !== undefined}
+        downloadFileName={`${label || "fork"}-annotated.pdf`}
+      />
     </div>
   );
 
@@ -325,7 +336,9 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
 
                       <MarkdownRenderer
                         markdown={fork.markdown_content}
-                        renderPdfLink={(href, label, pdfIndex) => renderEmbeddedPdfLink(href, label, pdfIndex, `pinned-${fork.id}`)}
+                        renderPdfLink={(href, label, pdfIndex) =>
+                          renderEmbeddedPdfLink(href, label, pdfIndex, `pinned-${fork.id}`, fork.annotation_layers)
+                        }
                       />
                     </section>
                   ))}

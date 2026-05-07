@@ -8,7 +8,7 @@ import { ArrowLeft, LoaderCircle, Star } from "lucide-react";
 import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { getProfileDisplayName, type ProfileNameRow } from "@/lib/profile-names";
 import type { Database } from "@/types/database";
-import type { ForkCardData, ForkStar, StudyMaterial, UserFork } from "@/types/resource";
+import type { ForkCardData, ForkStar, SavedAnnotationLayer, StudyMaterial, UserFork } from "@/types/resource";
 import { MarkdownRenderer } from "@/components/resources/markdown-renderer";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -185,7 +185,7 @@ export function ForkViewerClient() {
       </div>
       <EmbeddedPdfViewer
         file={href}
-        annotationLayers={fork?.annotation_layers ?? {}}
+        annotationLayers={(fork?.annotation_layers ?? {}) as Record<number, SavedAnnotationLayer>}
         enableAnnotatedDownload
         downloadFileName={`${label || "fork"}-annotated.pdf`}
       />

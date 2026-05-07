@@ -27,6 +27,14 @@ export type ResourcePdfLink = {
   label: string;
 };
 
+export type SavedAnnotationLayer =
+  | unknown[]
+  | {
+      objects?: unknown[];
+      width?: number;
+      height?: number;
+    };
+
 export type UserFork = {
   id: string;
   user_id: string;
@@ -34,7 +42,7 @@ export type UserFork = {
   source_url: string;
   description: string | null;
   markdown_content: string;
-  annotation_layers: Record<number, unknown[]> | null;
+  annotation_layers: Record<number, SavedAnnotationLayer> | null;
   is_pinned: boolean;
   pinned_title: string | null;
   pinned_order: number;
@@ -62,7 +70,7 @@ export type ForkCardData = {
   source_url: string;
   description: string | null;
   markdown_content: string;
-  annotation_layers: Record<number, unknown[]> | null;
+  annotation_layers: Record<number, SavedAnnotationLayer> | null;
   is_pinned: boolean;
   pinned_title: string | null;
   pinned_order: number;
