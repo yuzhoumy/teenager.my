@@ -26,6 +26,11 @@ function isImageLink(url: string) {
   return /\.(png|jpe?g|gif|webp|svg|avif)($|[?#])/i.test(url);
 }
 
+function getAnnotatedPdfFileName(label: string) {
+  const baseName = (label || "fork").trim().replace(/\.pdf$/i, "");
+  return `${baseName || "fork"}-annotated.pdf`;
+}
+
 export function ForkViewerClient() {
   const searchParams = useSearchParams();
   const forkId = searchParams.get("forkId");
@@ -177,19 +182,15 @@ export function ForkViewerClient() {
   };
 
   const renderPdfLink = (href: string, label: string, index: number) => (
-    <div key={`fork-pdf-${index}`} className="relative left-1/2 w-[calc(100vw-10px)] max-w-[calc(100vw-10px)] -translate-x-1/2 space-y-[5px] overflow-hidden rounded-[14px] border border-[#172033] bg-[#08131f] p-[5px] sm:left-auto sm:w-auto sm:max-w-full sm:translate-x-0 sm:space-y-4 sm:rounded-[28px] sm:border-border sm:p-5">
-      <div className="flex min-w-0 max-w-full flex-wrap items-center justify-between gap-[5px] sm:gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-foreground">{label}</p>
-        </div>
-      </div>
-      <EmbeddedPdfViewer
-        file={href}
-        annotationLayers={(fork?.annotation_layers ?? {}) as Record<number, SavedAnnotationLayer>}
-        enableAnnotatedDownload
-        downloadFileName={`${label || "fork"}-annotated.pdf`}
-      />
-    </div>
+    <EmbeddedPdfViewer
+      key={`fork-pdf-${index}`}
+      file={href}
+      title={label}
+      annotationLayers={(fork?.annotation_layers ?? {}) as Record<number, SavedAnnotationLayer>}
+      enableAnnotatedDownload
+      downloadFileName={getAnnotatedPdfFileName(label)}
+      className="relative left-1/2 w-[calc(100vw-10px)] max-w-[calc(100vw-10px)] -translate-x-1/2 sm:left-auto sm:w-auto sm:max-w-full sm:translate-x-0"
+    />
   );
 
   const renderImageLink = (href: string, label: string, index: number) => (

@@ -6,6 +6,7 @@ import "react-pdf/dist/Page/TextLayer.css";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, LoaderCircle, ZoomIn, ZoomOut } from "lucide-react";
 import { downloadAnnotatedPdf } from "@/lib/export-annotated-pdf";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@5.4.296/build/pdf.worker.min.mjs`;
 
@@ -68,14 +69,20 @@ function normalizeSavedLayer(value: SavedLayerValue | undefined) {
 
 export function EmbeddedPdfViewer({
   file,
+  title,
   annotationLayers,
+  downloadHref,
   downloadFileName,
   enableAnnotatedDownload = false,
+  className,
 }: {
   file: string;
+  title?: string;
   annotationLayers?: AnnotationLayerMap | null;
+  downloadHref?: string;
   downloadFileName?: string;
   enableAnnotatedDownload?: boolean;
+  className?: string;
 }) {
   const [numPages, setNumPages] = useState(0);
   const [pageNumber, setPageNumber] = useState(1);
@@ -386,10 +393,13 @@ export function EmbeddedPdfViewer({
   const zoomedPageWidth = pageWidth > 0 ? Math.round(pageWidth * zoom) : 0;
   const zoomedPageHeight = pageWidth > 0 ? Math.round(pageWidth * pageAspectRatio * zoom) : undefined;
   const viewerPixelRatio = Math.min(3, Math.max(devicePixelRatio, 2));
+  const shouldShowDownload = enableAnnotatedDownload || Boolean(downloadHref);
 
   return (
-    <div className="min-w-0 max-w-full overflow-hidden rounded-[14px] bg-[#09101b] p-[5px] sm:rounded-[28px] sm:border sm:border-white/10 sm:p-4">
-      <div className="mb-[5px] flex min-w-0 max-w-full flex-col gap-[5px] sm:mb-4 sm:gap-3 lg:flex-row lg:items-center lg:justify-between">
+    <div className={cn("min-w-0 max-w-full overflow-hidden rounded-[14px] bg-[#09101b] p-[5px] sm:rounded-[28px] sm:border sm:border-white/10 sm:p-4", className)}>
+      <div className="mb-[5px] flex min-w-0 max-w-full flex-col gap-[5px] sm:mb-4 sm:gap-3">
+        {title ? <p className="min-w-0 truncate text-sm font-semibold text-foreground">{title}</p> : null}
+        <div className="flex min-w-0 max-w-full flex-col gap-[5px] lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" size="sm" variant="ghost" className="h-9 w-9 p-0" onClick={() => jumpToPage(1)} disabled={pageNumber <= 1}>
             <ChevronsLeft className="h-4 w-4" />
@@ -469,7 +479,15 @@ export function EmbeddedPdfViewer({
               {downloading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
               Download
             </Button>
+          ) : shouldShowDownload && downloadHref ? (
+            <Button asChild type="button" size="sm" variant="outline">
+              <a href={downloadHref} target="_blank" rel="noreferrer" download>
+                <Download className="h-4 w-4" />
+                Download
+              </a>
+            </Button>
           ) : null}
+        </div>
         </div>
       </div>
 

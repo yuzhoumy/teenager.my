@@ -5,6 +5,9 @@ import { pdfjs } from "react-pdf";
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@5.4.296/build/pdf.worker.min.mjs`;
 
 const legacyAnnotationLayerWidth = 760;
+const exportResolutionMultiplier = 2.5;
+const minExportPageWidth = 2200;
+const maxExportPageWidth = 3600;
 
 type SavedLayerValue =
   | unknown[]
@@ -46,6 +49,8 @@ type RenderedPdfPage = {
   bytes: Uint8Array;
   width: number;
   height: number;
+  mediaWidth: number;
+  mediaHeight: number;
 };
 
 function toUint8Array(dataUrl: string) {
@@ -74,6 +79,11 @@ function normalizeSavedLayer(value: SavedLayerValue | undefined) {
     width: typeof value.width === "number" ? value.width : null,
     height: typeof value.height === "number" ? value.height : null,
   };
+}
+
+function getExportPageWidth(preferredWidth: number, pageWidth: number) {
+  const requestedWidth = Math.max(preferredWidth, pageWidth) * exportResolutionMultiplier;
+  return Math.round(Math.min(maxExportPageWidth, Math.max(minExportPageWidth, requestedWidth)));
 }
 
 async function loadFabricModule() {
@@ -174,7 +184,8 @@ async function renderAnnotatedPages({
   for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber += 1) {
     const page = await pdfDocument.getPage(pageNumber);
     const firstViewport = page.getViewport({ scale: 1 });
-    const scale = preferredWidth > 0 ? preferredWidth / firstViewport.width : 1.25;
+    const exportWidth = getExportPageWidth(preferredWidth, firstViewport.width);
+    const scale = exportWidth / firstViewport.width;
     const viewport = page.getViewport({ scale: Number.isFinite(scale) && scale > 0 ? scale : 1.25 });
 
     const pageCanvas = document.createElement("canvas");
@@ -216,6 +227,8 @@ async function renderAnnotatedPages({
       bytes: toUint8Array(mergedCanvas.toDataURL("image/jpeg", 0.92)),
       width: mergedCanvas.width,
       height: mergedCanvas.height,
+      mediaWidth: firstViewport.width,
+      mediaHeight: firstViewport.height,
     });
   }
 
@@ -273,12 +286,12 @@ function buildPdf(pages: RenderedPdfPage[]) {
     const pageObjectNumber = pageObjectNumbers[index];
     const contentObjectNumber = contentObjectNumbers[index];
     const imageObjectNumber = imageObjectNumbers[index];
-    const contentStream = `q\n${page.width} 0 0 ${page.height} 0 0 cm\n${imageName} Do\nQ`;
+    const contentStream = `q\n${page.mediaWidth} 0 0 ${page.mediaHeight} 0 0 cm\n${imageName} Do\nQ`;
     const contentBytes = encoder.encode(contentStream);
 
     writeObject(
       pageObjectNumber,
-      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${page.width} ${page.height}] /Resources << /XObject << ${imageName} ${imageObjectNumber} 0 R >> >> /Contents ${contentObjectNumber} 0 R >>`,
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${page.mediaWidth} ${page.mediaHeight}] /Resources << /XObject << ${imageName} ${imageObjectNumber} 0 R >> >> /Contents ${contentObjectNumber} 0 R >>`,
     );
     writeObject(
       contentObjectNumber,
