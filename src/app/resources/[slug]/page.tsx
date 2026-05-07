@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import {
   getMaterialBySlug,
-  getMaterialCoreTypeLabel,
   getMaterialSlugs,
 } from "@/lib/materials";
 import { ResourceDetailClientShell } from "@/components/resources/resource-detail-client-shell";
@@ -26,7 +25,7 @@ export async function generateMetadata(props: ResourcePageProps): Promise<Metada
 
   return {
     title: `${material.title} | teenager.my`,
-    description: `${material.subject} ${getMaterialCoreTypeLabel(material.core_type).toLowerCase()} by ${material.author_name}`,
+    description: `${material.subject} resource by ${material.author_name}`,
   };
 }
 

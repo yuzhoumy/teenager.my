@@ -154,12 +154,15 @@ create table if not exists public.materials (
   year integer not null check (year between 2000 and 2100),
   origin text not null,
   author_name text not null,
+  has_solution boolean not null default false,
   uploaded_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
   constraint materials_category_tags_allowed check (
-    category_tags <@ array['past-year', 'trial-paper']::text[]
+    category_tags <@ array['exercise', 'note', 'textbook', 'trial-paper', 'past-year-paper', 'exam-paper']::text[]
   )
 );
+
+alter table public.materials add column if not exists has_solution boolean not null default false;
 
 alter table public.materials enable row level security;
 
@@ -190,6 +193,31 @@ create policy "Allow users to insert own material bookmarks" on public.material_
 
 drop policy if exists "Allow users to delete own material bookmarks" on public.material_bookmarks;
 create policy "Allow users to delete own material bookmarks" on public.material_bookmarks
+  for delete
+  using (auth.uid() = user_id);
+
+create table if not exists public.material_stars (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  material_id uuid not null references public.materials(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (user_id, material_id)
+);
+
+alter table public.material_stars enable row level security;
+
+drop policy if exists "Allow public selects on material stars" on public.material_stars;
+create policy "Allow public selects on material stars" on public.material_stars
+  for select
+  using (true);
+
+drop policy if exists "Allow users to star material once" on public.material_stars;
+create policy "Allow users to star material once" on public.material_stars
+  for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Allow users to remove own material stars" on public.material_stars;
+create policy "Allow users to remove own material stars" on public.material_stars
   for delete
   using (auth.uid() = user_id);
 
@@ -322,12 +350,15 @@ create table if not exists public.pending_materials (
   year integer not null check (year between 2000 and 2100),
   origin text not null,
   author_name text not null,
+  has_solution boolean not null default false,
   uploaded_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
   constraint pending_materials_category_tags_allowed check (
-    category_tags <@ array['past-year', 'trial-paper']::text[]
+    category_tags <@ array['exercise', 'note', 'textbook', 'trial-paper', 'past-year-paper', 'exam-paper']::text[]
   )
 );
+
+alter table public.pending_materials add column if not exists has_solution boolean not null default false;
 
 alter table public.pending_materials enable row level security;
 
@@ -349,6 +380,8 @@ create index if not exists idx_materials_year on public.materials (year desc);
 create index if not exists idx_materials_created_at on public.materials (created_at desc);
 create index if not exists idx_materials_slug on public.materials (slug);
 create index if not exists idx_materials_category_tags on public.materials using gin (category_tags);
+create index if not exists idx_material_stars_material_id on public.material_stars (material_id);
+create index if not exists idx_material_stars_user_id on public.material_stars (user_id);
 create index if not exists idx_user_forks_material_id on public.user_forks (material_id);
 create index if not exists idx_user_forks_user_id on public.user_forks (user_id);
 create index if not exists idx_user_forks_pinned on public.user_forks (material_id, is_pinned, pinned_order, created_at desc);

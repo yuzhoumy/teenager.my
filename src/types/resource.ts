@@ -17,6 +17,7 @@ export type StudyMaterial = {
   year: number;
   origin: string;
   author_name: string;
+  has_solution: boolean;
   uploaded_by: string | null;
   created_at: string;
 };
@@ -43,6 +44,13 @@ export type UserFork = {
 export type ForkStar = {
   id: string;
   fork_id: string;
+  user_id: string;
+  created_at: string;
+};
+
+export type MaterialStar = {
+  id: string;
+  material_id: string;
   user_id: string;
   created_at: string;
 };

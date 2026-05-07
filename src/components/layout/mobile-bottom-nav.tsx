@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, Home, Layers2, Moon, Sun, User } from "lucide-react";
+import { BookOpen, Home, Moon, Sun, Upload, User } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
@@ -63,10 +63,10 @@ export function MobileBottomNav() {
             <BookOpen className="h-4 w-4" />
             Resources
           </Link>
-          <div className="flex flex-col items-center gap-1 rounded-2xl py-2 text-xs text-text-soft">
-            <Layers2 className="h-4 w-4" />
-            Study Room
-          </div>
+          <Link href="/resources/upload" className="flex flex-col items-center gap-1 rounded-2xl py-2 text-xs text-text-muted">
+            <Upload className="h-4 w-4" />
+            Upload
+          </Link>
           <Link
             href={isLoggedIn ? "/profile" : "/login"}
             className="flex flex-col items-center gap-1 rounded-2xl py-2 text-xs text-text-muted"

@@ -3,9 +3,8 @@
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, CalendarDays, GraduationCap, MessageSquare, Tag, UserRound } from "lucide-react";
+import { ArrowLeft, CalendarDays, CheckCircle2, GraduationCap, MessageSquare, Tag, UserRound } from "lucide-react";
 import {
-  getMaterialCoreTypeLabel,
   getMaterialGradeLabel,
   getMaterialTagLabel,
 } from "@/lib/materials";
@@ -16,6 +15,7 @@ import { ResourceDiscussionThread } from "@/components/resources/resource-discus
 import { ResourceSidebar } from "@/components/resources/resource-sidebar";
 import { PdfForkEditor } from "@/components/resources/resource-pdf-fork-editor";
 import { MarkdownRenderer } from "@/components/resources/markdown-renderer";
+import { ResourceStarButton } from "@/components/resources/resource-star-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -42,18 +42,21 @@ function extractPdfLinks(markdown: string) {
 }
 
 export function ResourceDetailClient({ material }: { material: StudyMaterial }) {
-  const [displayMaterial, setDisplayMaterial] = useState(material);
+  const [currentUploaderName, setCurrentUploaderName] = useState<{ materialId: string; authorName: string } | null>(null);
   const [currentTab, setCurrentTab] = useState<TabKey>("resource");
   const [pinnedForks, setPinnedForks] = useState<PinnedFork[]>([]);
   const [loadingPinnedForks, setLoadingPinnedForks] = useState(false);
   const [pinnedForksError, setPinnedForksError] = useState("");
 
+  const displayMaterial = useMemo(
+    () =>
+      currentUploaderName?.materialId === material.id
+        ? { ...material, author_name: currentUploaderName.authorName }
+        : material,
+    [currentUploaderName, material],
+  );
   const pdfLinks = useMemo(() => extractPdfLinks(displayMaterial.content_markdown), [displayMaterial.content_markdown]);
   const primaryPdf = pdfLinks[0] ?? null;
-
-  useEffect(() => {
-    setDisplayMaterial(material);
-  }, [material]);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,11 +75,7 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
       const typedProfile = profileError ? null : (profileRow as Pick<ProfileNameRow, "display_name"> | null);
       const displayName = typedProfile?.display_name?.trim() ?? "";
       if (!cancelled && displayName) {
-        setDisplayMaterial((currentMaterial) =>
-          currentMaterial.id === material.id
-            ? { ...currentMaterial, author_name: displayName }
-            : currentMaterial,
-        );
+        setCurrentUploaderName({ materialId: material.id, authorName: displayName });
       }
     }
 
@@ -186,10 +185,16 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
               <p className="mt-4 max-w-3xl text-base text-text-muted">
                 Read the markdown like a project README, then view or fork the document inside a tabbed workspace.
               </p>
+              {displayMaterial.has_solution ? (
+                <p className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 text-sm font-semibold text-emerald-200">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Solution provided
+                </p>
+              ) : null}
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <Badge className="bg-[#f3ebe4] text-brand">{getMaterialCoreTypeLabel(displayMaterial.core_type)}</Badge>
+              <ResourceStarButton materialId={displayMaterial.id} />
               <Button type="button" size="sm" variant="default" onClick={() => setCurrentTab("fork")}>Fork</Button>
             </div>
           </div>
@@ -328,7 +333,7 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
               </article>
 
               <aside className="px-6 py-6 lg:sticky lg:top-10 lg:mt-4 lg:max-h-[calc(100vh-4rem)] lg:self-start lg:overflow-y-auto lg:px-6">
-                <ResourceSidebar material={material} pinnedForks={pinnedForks} />
+                <ResourceSidebar pinnedForks={pinnedForks} />
               </aside>
             </div>
           ) : currentTab === "fork" ? (

@@ -2,7 +2,6 @@
 
 import type { FormEvent } from "react";
 import {
-  getMaterialCoreTypeLabel,
   getMaterialGradeLabel,
   getMaterialTagLabel,
   groupMaterialsBySubject,
@@ -14,10 +13,8 @@ import { useMaterialFilters, useMaterialsQuery } from "@/components/resources/us
 function ActiveFiltersSummary({ filters }: { filters: ReturnType<typeof useMaterialsQuery>["filters"] }) {
   const tokens = [
     filters.grade ? getMaterialGradeLabel(filters.grade) : null,
-    ...filters.coreTypes.map((coreType) => getMaterialCoreTypeLabel(coreType)),
     ...filters.subjects,
     ...filters.tags.map((tag) => getMaterialTagLabel(tag)),
-    ...filters.origins,
   ].filter((token): token is string => Boolean(token));
 
   return (
@@ -86,8 +83,8 @@ export function ResourcesPageClient() {
           <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Metadata search</p>
           <h1 className="mt-2 text-4xl text-foreground sm:text-5xl">Study resources</h1>
           <p className="mt-3 max-w-3xl text-base text-text-muted">
-            Filter by core type, grade, subject, tags, and origin with shareable URLs. Open each resource as its own
-            page with markdown content and attachment links kept inside the write-up.
+            Filter by grade, subject, and tags with shareable URLs. Open each resource as its own page with
+            markdown content and attachment links kept inside the write-up.
           </p>
         </div>
       </div>
@@ -108,7 +105,7 @@ export function ResourcesPageClient() {
                   name="query"
                   type="search"
                   defaultValue={filters.query}
-                  placeholder="Search titles or filters like Form 5, Exercise, Trial Paper"
+                  placeholder="Search titles or filters like Form 5, Trial Paper"
                   className="min-w-0 flex-1 rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
                 />
                 <button

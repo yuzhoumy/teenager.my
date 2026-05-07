@@ -21,7 +21,7 @@ values
     E'# Overview\n- Past-year set with structured and objective sections.\n- Useful for time-based drilling before finals.\n\n## Attachment\n[Open the paper](https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf)',
     'f5',
     'Physics',
-    array['past-year'],
+    array['past-year-paper'],
     2023,
     'MRSM',
     'MRSM Physics Department'
@@ -45,7 +45,7 @@ values
     E'# Overview\n- Official-style past-year paper for SPM preparation.\n- Best paired with answer discussion after each timed session.\n\n## Attachment\n[Open the paper](https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf)',
     'f5',
     'Sejarah',
-    array['past-year'],
+    array['past-year-paper'],
     2022,
     'State',
     'Sejarah Teachers Network'
@@ -93,7 +93,7 @@ values
     E'# Overview\n- Past-year Bahasa Melayu paper for close-reading and essay practice.\n- Use together with marking scheme discussion during review.\n\n## Attachment\n[Open the paper](https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf)',
     'f5',
     'Bahasa Melayu',
-    array['past-year'],
+    array['past-year-paper'],
     2021,
     'State',
     'Bahasa Melayu Resource Circle'

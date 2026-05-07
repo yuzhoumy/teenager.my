@@ -7,11 +7,13 @@ alter table public.materials add column if not exists slug text;
 alter table public.materials add column if not exists core_type text;
 alter table public.materials add column if not exists content_markdown text;
 alter table public.materials add column if not exists author_name text;
+alter table public.materials add column if not exists has_solution boolean not null default false;
 
 alter table public.pending_materials add column if not exists slug text;
 alter table public.pending_materials add column if not exists core_type text;
 alter table public.pending_materials add column if not exists content_markdown text;
 alter table public.pending_materials add column if not exists author_name text;
+alter table public.pending_materials add column if not exists has_solution boolean not null default false;
 
 alter table public.user_forks add column if not exists markdown_content text;
 alter table public.user_forks add column if not exists description text;
@@ -182,11 +184,49 @@ drop policy if exists "Allow users to remove own fork stars" on public.fork_star
 create policy "Allow users to remove own fork stars" on public.fork_stars
   for delete
   using (auth.uid() = user_id);
+create table if not exists public.material_stars (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  material_id uuid not null references public.materials(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (user_id, material_id)
+);
+alter table public.material_stars enable row level security;
+drop policy if exists "Allow public selects on material stars" on public.material_stars;
+create policy "Allow public selects on material stars" on public.material_stars
+  for select
+  using (true);
+drop policy if exists "Allow users to star material once" on public.material_stars;
+create policy "Allow users to star material once" on public.material_stars
+  for insert
+  with check (auth.uid() = user_id);
+drop policy if exists "Allow users to remove own material stars" on public.material_stars;
+create policy "Allow users to remove own material stars" on public.material_stars
+  for delete
+  using (auth.uid() = user_id);
+create index if not exists idx_material_stars_material_id on public.material_stars (material_id);
+create index if not exists idx_material_stars_user_id on public.material_stars (user_id);
 create index if not exists idx_user_forks_pinned on public.user_forks (material_id, is_pinned, pinned_order, created_at desc);
 
 -- 2. Drop the restrictive constraint
 alter table public.materials drop constraint if exists materials_category_tags_not_empty;
 alter table public.pending_materials drop constraint if exists pending_materials_category_tags_not_empty;
+alter table public.materials drop constraint if exists materials_category_tags_allowed;
+alter table public.pending_materials drop constraint if exists pending_materials_category_tags_allowed;
+update public.materials
+set category_tags = array_replace(category_tags, 'past-year', 'past-year-paper')
+where category_tags @> array['past-year']::text[];
+update public.pending_materials
+set category_tags = array_replace(category_tags, 'past-year', 'past-year-paper')
+where category_tags @> array['past-year']::text[];
+alter table public.materials
+  add constraint materials_category_tags_allowed check (
+    category_tags <@ array['exercise', 'note', 'textbook', 'trial-paper', 'past-year-paper', 'exam-paper']::text[]
+  );
+alter table public.pending_materials
+  add constraint pending_materials_category_tags_allowed check (
+    category_tags <@ array['exercise', 'note', 'textbook', 'trial-paper', 'past-year-paper', 'exam-paper']::text[]
+  );
 
 -- 3. Dynamic Update (The fix for "column does not exist")
 do $$
@@ -198,8 +238,9 @@ begin
             set
               core_type = case
                 when m.category_tags @> array[''exercise'']::text[] then ''exercise''
-                when m.category_tags @> array[''past-year'']::text[] then ''exercise''
+                when m.category_tags @> array[''past-year-paper'']::text[] then ''exercise''
                 when m.category_tags @> array[''trial-paper'']::text[] then ''exercise''
+                when m.category_tags @> array[''exam-paper'']::text[] then ''exercise''
                 else ''note''
               end,
               author_name = coalesce((select display_name from public.profiles where user_id = m.uploaded_by), ''Unknown author''),

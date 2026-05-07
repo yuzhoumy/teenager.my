@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Bookmark, Check, Eye, GraduationCap, MapPin, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
-  getMaterialCoreTypeLabel,
   getMaterialGradeLabel,
   getMaterialHref,
   getMaterialTagLabel,
@@ -15,6 +14,7 @@ import type { StudyMaterial } from "@/types/resource";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ResourceStarButton } from "@/components/resources/resource-star-button";
 
 export function ResourceCard({ material }: { material: StudyMaterial }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -129,7 +129,6 @@ export function ResourceCard({ material }: { material: StudyMaterial }) {
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
-        <Badge className="bg-[#f3ebe4] text-brand">{getMaterialCoreTypeLabel(material.core_type)}</Badge>
         {material.category_tags.map((tag) => (
           <Badge key={tag} className="bg-surface-muted">
             {getMaterialTagLabel(tag)}
@@ -153,7 +152,6 @@ export function ResourceCard({ material }: { material: StudyMaterial }) {
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <span className="text-xs text-text-soft">Open the page to read the markdown notes and attachments.</span>
         <div className="flex flex-wrap gap-2">
           {isLoggedIn ? (
             <Button size="sm" variant={isSaved ? "secondary" : "outline"} onClick={toggleSave} disabled={isSaving}>
@@ -161,6 +159,7 @@ export function ResourceCard({ material }: { material: StudyMaterial }) {
               {isSaving ? "Saving..." : isSaved ? "Saved" : "Save"}
             </Button>
           ) : null}
+          <ResourceStarButton materialId={material.id} />
           <Button asChild size="sm">
             <Link href={getMaterialHref(material)}>
               <Eye className="h-4 w-4" />

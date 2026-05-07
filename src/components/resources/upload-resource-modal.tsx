@@ -88,7 +88,7 @@ export function UploadResourceModal() {
 
     const parsedTags = parseTags(tagInput);
     if (parsedTags.length === 0) {
-      setError("Please provide at least one valid tag, e.g. exercise, notes, past-year, trial-paper.");
+      setError("Please provide at least one valid tag, e.g. exercise, note, textbook, trial-paper, past-year-paper, exam-paper.");
       return;
     }
 
@@ -226,7 +226,7 @@ export function UploadResourceModal() {
                 onChange={(event) => setYear(event.target.value)}
               />
               <Input
-                placeholder={`${t("search.tagsCommaSeparated")} (exercise, notes, past-year, trial-paper)`}
+                placeholder={`${t("search.tagsCommaSeparated")} (exercise, note, textbook, trial-paper, past-year-paper, exam-paper)`}
                 required
                 value={tagInput}
                 onChange={(event) => setTagInput(event.target.value)}

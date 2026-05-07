@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import type { MaterialCoreType, MaterialGrade, MaterialTag } from "@/types/database";
+import type { MaterialGrade, MaterialTag } from "@/types/database";
 import {
-  getMaterialCoreTypeLabel,
   getMaterialGradeLabel,
   getMaterialTagLabel,
   type MaterialFacets,
@@ -34,10 +33,8 @@ export function ResourceFiltersBar({ facets }: Props) {
   const {
     filters,
     setGrade,
-    toggleCoreType,
     toggleSubject,
     toggleTag,
-    toggleOrigin,
     setSearchText,
     clearAll,
   } = useMaterialFilters();
@@ -89,7 +86,7 @@ export function ResourceFiltersBar({ facets }: Props) {
                 name="query"
                 type="search"
                 defaultValue={filters.query}
-                placeholder="Search titles or type filters like Form 5, Exercise, Trial Paper"
+                placeholder="Search titles or filters like Form 5, Trial Paper"
                 className="min-w-0 flex-1 rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
               />
               <Button type="submit" variant="secondary" size="sm" className="whitespace-nowrap">
@@ -121,25 +118,6 @@ export function ResourceFiltersBar({ facets }: Props) {
                   className="h-4 w-4 accent-[var(--brand)]"
                 />
                 {getMaterialGradeLabel(grade.value as MaterialGrade)}
-              </label>
-            ))}
-          </div>
-        </FilterSection>
-
-        <FilterSection title="Core Type">
-          <div className="space-y-2">
-            {facets.coreTypes.map((coreType) => (
-              <label key={coreType.value} className="flex items-center justify-between gap-3 text-sm text-text-muted">
-                <span className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={filters.coreTypes.includes(coreType.value as MaterialCoreType)}
-                    onChange={() => toggleCoreType(coreType.value as MaterialCoreType)}
-                    className="h-4 w-4 rounded accent-[var(--brand)]"
-                  />
-                  {getMaterialCoreTypeLabel(coreType.value as MaterialCoreType)}
-                </span>
-                <span className="text-xs text-text-soft">{coreType.count}</span>
               </label>
             ))}
           </div>
@@ -178,25 +156,6 @@ export function ResourceFiltersBar({ facets }: Props) {
                   {getMaterialTagLabel(tag.value as MaterialTag)}
                 </span>
                 <span className="text-xs text-text-soft">{tag.count}</span>
-              </label>
-            ))}
-          </div>
-        </FilterSection>
-
-        <FilterSection title="Origin">
-          <div className="space-y-2">
-            {facets.origins.map((origin) => (
-              <label key={origin.value} className="flex items-center justify-between gap-3 text-sm text-text-muted">
-                <span className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={filters.origins.includes(origin.value)}
-                    onChange={() => toggleOrigin(origin.value)}
-                    className="h-4 w-4 rounded accent-[var(--brand)]"
-                  />
-                  {origin.label}
-                </span>
-                <span className="text-xs text-text-soft">{origin.count}</span>
               </label>
             ))}
           </div>

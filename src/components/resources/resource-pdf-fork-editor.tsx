@@ -1200,7 +1200,7 @@ export function PdfForkEditor({
   const renderForkCard = (forkCard: ForkCardData) => (
     <div
       key={forkCard.id}
-      className="flex min-h-48 cursor-pointer flex-col rounded-2xl border border-border bg-surface-strong p-4 transition hover:border-foreground/30 hover:bg-surface"
+      className="group flex min-h-48 cursor-pointer flex-col rounded-2xl border border-border bg-surface-strong p-4 transition hover:border-foreground/30 hover:bg-surface"
       onClick={() => router.push(`/forks?forkId=${forkCard.id}&materialSlug=${materialSlug}`)}
     >
       <h3 className="text-2xl leading-tight text-foreground">
@@ -1228,7 +1228,7 @@ export function PdfForkEditor({
           </p>
           <p className="mt-1 text-xs text-text-muted">Saved on {new Date(forkCard.created_at).toLocaleDateString()}</p>
         </div>
-        <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 text-sm font-semibold text-text-muted">
+        <span className="inline-flex items-center gap-2 rounded-full bg-transparent px-3 py-1.5 text-sm font-semibold text-text-muted transition group-hover:bg-surface group-hover:text-foreground">
           <Star className={`h-4 w-4 ${forkCard.has_starred ? "fill-current text-brand" : ""}`} />
           {forkCard.star_count}
         </span>

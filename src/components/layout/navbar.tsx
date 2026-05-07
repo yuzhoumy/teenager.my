@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, Moon, Sun, UserCircle2 } from "lucide-react";
+import { BookOpen, Moon, Sun, Upload, UserCircle2 } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
@@ -81,6 +81,10 @@ export function Navbar() {
           <Link href="/search" className="text-sm text-text-muted hover:text-foreground">
             Resources
           </Link>
+          <Link href="/resources/upload" className="inline-flex items-center gap-2 text-sm font-semibold text-brand hover:text-brand-soft">
+            <Upload className="h-4 w-4" />
+            Upload resource
+          </Link>
 
           {futureModules.map((module) => (
             <span key={module} className="text-sm text-text-soft">
@@ -88,16 +92,15 @@ export function Navbar() {
             </span>
           ))}
 
-          <div className="ml-2 flex items-center gap-2 rounded-full border border-border bg-surface px-2 py-1 shadow-[0_0_0_1px_var(--border)]">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleTheme}
-              aria-label={themeAriaLabel}
-            >
-              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </Button>
-          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-2 rounded-full border border-border bg-surface shadow-[0_0_0_1px_var(--border)]"
+            onClick={toggleTheme}
+            aria-label={themeAriaLabel}
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </Button>
 
           <Button asChild variant="secondary" size="sm">
             <Link href={isLoggedIn ? "/profile" : "/login"}>

@@ -8,7 +8,7 @@ export type Json =
 
 export type MaterialGrade = "f1" | "f2" | "f3" | "f4" | "f5";
 export type MaterialCoreType = "exercise" | "note";
-export type MaterialTag = "past-year" | "trial-paper";
+export type MaterialTag = "exercise" | "note" | "textbook" | "trial-paper" | "past-year-paper" | "exam-paper";
 export type AnnotationRect = {
   x: number;
   y: number;
@@ -53,6 +53,7 @@ export type Database = {
           year: number;
           origin: string;
           author_name: string;
+          has_solution: boolean;
           uploaded_by: string | null;
           created_at: string;
         };
@@ -68,6 +69,7 @@ export type Database = {
           year: number;
           origin: string;
           author_name: string;
+          has_solution?: boolean;
           uploaded_by?: string | null;
           created_at?: string;
         };
@@ -86,6 +88,7 @@ export type Database = {
           year: number;
           origin: string;
           author_name: string;
+          has_solution: boolean;
           uploaded_by: string | null;
           created_at: string;
         };
@@ -101,6 +104,7 @@ export type Database = {
           year: number;
           origin: string;
           author_name: string;
+          has_solution?: boolean;
           uploaded_by?: string | null;
           created_at?: string;
         };
@@ -120,6 +124,21 @@ export type Database = {
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["material_bookmarks"]["Insert"]>;
+      };
+      material_stars: {
+        Row: {
+          id: string;
+          material_id: string;
+          user_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          material_id: string;
+          user_id: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["material_stars"]["Insert"]>;
       };
         user_forks: {
         Row: {
