@@ -29,6 +29,10 @@ export type MaterialFacets = {
 };
 
 type MaterialFacetRow = Pick<StudyMaterial, "grade" | "core_type" | "subject" | "category_tags" | "origin">;
+type ProfileNameRow = {
+  user_id: string;
+  display_name: string;
+};
 
 export const materialGrades: MaterialGrade[] = ["f1", "f2", "f3", "f4", "f5"];
 export const materialCoreTypes: MaterialCoreType[] = ["exercise", "note"];
@@ -167,6 +171,34 @@ export function getMaterialTagLabel(tag: MaterialTag) {
 
 export function getMaterialHref(material: Pick<StudyMaterial, "slug">) {
   return `/resources/${material.slug}`;
+}
+
+async function withCurrentUploaderNames(materials: StudyMaterial[]) {
+  const uploaderIds = Array.from(
+    new Set(materials.map((material) => material.uploaded_by).filter(Boolean)),
+  ) as string[];
+
+  if (uploaderIds.length === 0) {
+    return materials;
+  }
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("user_id, display_name")
+    .in("user_id", uploaderIds);
+
+  if (error) {
+    return materials;
+  }
+
+  const profileNames = new Map(
+    ((data ?? []) as ProfileNameRow[]).map((profile) => [profile.user_id, profile.display_name]),
+  );
+
+  return materials.map((material) => ({
+    ...material,
+    author_name: material.uploaded_by ? profileNames.get(material.uploaded_by) ?? material.author_name : material.author_name,
+  }));
 }
 
 function normalizeSearchParam(value: SearchParamValue) {
@@ -316,7 +348,7 @@ export async function getMaterials(filters: MaterialFilters) {
     throw new Error(`Unable to fetch materials: ${error.message}`);
   }
 
-  return (data ?? []) as StudyMaterial[];
+  return withCurrentUploaderNames((data ?? []) as StudyMaterial[]);
 }
 
 export async function getMaterialFacets(): Promise<MaterialFacets> {
@@ -420,7 +452,13 @@ export async function getMaterialBySlug(slug: string) {
     return fallbackMaterials.find((material) => material.slug === slug) ?? null;
   }
 
-  return (data as StudyMaterial | null) ?? null;
+  const material = (data as StudyMaterial | null) ?? null;
+  if (!material) {
+    return null;
+  }
+
+  const [materialWithCurrentAuthor] = await withCurrentUploaderNames([material]);
+  return materialWithCurrentAuthor;
 }
 
 export async function getMaterialSlugs() {

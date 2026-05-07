@@ -237,7 +237,9 @@ export function PdfForkEditor({
   const [tool, setTool] = useState<Tool>("pan");
   const [annotationColor, setAnnotationColor] = useState<(typeof annotationColors)[number]>("#f59e0b");
   const [pdfZoom, setPdfZoom] = useState(1);
-  const [pdfStageSize, setPdfStageSize] = useState({ width: 0, height: 0 });
+  const [pdfPageAspectRatio, setPdfPageAspectRatio] = useState(4 / 3);
+  const [pdfViewportWidth, setPdfViewportWidth] = useState(0);
+  const [devicePixelRatio, setDevicePixelRatio] = useState(1);
   const [editorMode, setEditorMode] = useState<EditorMode>("edit");
   const [fabric, setFabric] = useState<FabricModule | null>(null);
   const [showEditor, setShowEditor] = useState(false);
@@ -284,6 +286,8 @@ export function PdfForkEditor({
   const annotationLayersRef = useRef<AnnotationLayerMap>({});
   const forkRef = useRef<UserFork | null>(null);
   const pageNumberRef = useRef(1);
+  const pdfPageAspectRatioRef = useRef(4 / 3);
+  const pdfViewportWidthRef = useRef(0);
   const autosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const restoringCanvasRef = useRef(false);
   const pinchDistanceRef = useRef(0);
@@ -491,6 +495,10 @@ export function PdfForkEditor({
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    setDevicePixelRatio(window.devicePixelRatio || 1);
   }, []);
 
   useEffect(() => {
@@ -832,21 +840,29 @@ export function PdfForkEditor({
   }, [canvasElement, pageNumber, pdfStageElement]);
 
   useEffect(() => {
-    if (!pdfStageElement) {
-      setPdfStageSize({ width: 0, height: 0 });
+    if (!pageWrapperElement) {
+      if (pdfViewportWidthRef.current !== 0) {
+        pdfViewportWidthRef.current = 0;
+        setPdfViewportWidth(0);
+      }
       return;
     }
 
     const resize = () => {
-      setPdfStageSize({ width: pdfStageElement.offsetWidth, height: pdfStageElement.offsetHeight });
+      const viewportWidth = document.documentElement.clientWidth || window.innerWidth || pageWrapperElement.offsetWidth;
+      const nextWidth = Math.floor(Math.min(pageWrapperElement.offsetWidth, viewportWidth - 2));
+      if (nextWidth > 0 && pdfViewportWidthRef.current !== nextWidth) {
+        pdfViewportWidthRef.current = nextWidth;
+        setPdfViewportWidth(nextWidth);
+      }
     };
 
     const observer = new ResizeObserver(() => resize());
-    observer.observe(pdfStageElement);
+    observer.observe(pageWrapperElement);
     resize();
 
     return () => observer.disconnect();
-  }, [pdfStageElement, pageNumber]);
+  }, [pageWrapperElement]);
 
   useEffect(() => {
     const canvas = canvasInstanceRef.current;
@@ -1252,14 +1268,14 @@ export function PdfForkEditor({
 
     const pdfPreview = pdfPreviews[href] ?? { status: "loading" };
     const lockPdfInteractions = tool !== "pan";
-    const pageBaseWidth = pageWrapperElement?.clientWidth ?? 760;
-    const zoomedStageWidth = pdfStageSize.width > 0 ? pdfStageSize.width * pdfZoom : "100%";
-    const zoomedStageHeight = pdfStageSize.height > 0 ? pdfStageSize.height * pdfZoom : undefined;
+    const pageBaseWidth = pdfViewportWidth || 760;
+    const zoomedStageWidth = Math.round(pageBaseWidth * pdfZoom);
+    const zoomedStageHeight = Math.round(pageBaseWidth * pdfPageAspectRatio * pdfZoom);
 
     return (
-      <div key={`pdf-editor-${index}`} className="mb-3 rounded-2xl border border-border bg-[#08131f] p-2 sm:mb-6 sm:rounded-[28px] sm:p-5">
-        <div className="mb-2 flex flex-wrap items-start justify-between gap-2 sm:mb-4 sm:gap-3">
-          <div>
+      <div key={`pdf-editor-${index}`} className="-mx-2 mb-3 w-auto min-w-0 max-w-[calc(100vw-1rem)] overflow-hidden border border-[#172033] bg-[#08131f] sm:mx-0 sm:mb-6 sm:max-w-full sm:rounded-[28px] sm:border-border sm:p-5">
+        <div className="flex min-w-0 max-w-full flex-wrap items-start justify-between gap-2 px-2 py-2 sm:mb-4 sm:gap-3 sm:px-0 sm:py-0">
+          <div className="min-w-0">
             <p className="text-sm font-semibold text-foreground">{label}</p>
             <p className="text-sm text-text-muted">PDF attachment rendered inline where this link appears.</p>
           </div>
@@ -1401,7 +1417,7 @@ export function PdfForkEditor({
         </div>
 
         <div
-          className={`relative rounded-2xl border border-white/10 bg-[#09101b] p-1 sm:rounded-[28px] sm:p-4 ${
+          className={`relative min-w-0 max-w-full overflow-hidden border-0 bg-transparent p-0 sm:rounded-[28px] sm:border sm:border-white/10 sm:bg-[#09101b] sm:p-4 ${
             lockPdfInteractions
               ? "[&_.react-pdf__Page__textContent]:pointer-events-none [&_.react-pdf__Page__textContent]:select-none [&_.react-pdf__Page__textContent_*]:pointer-events-none [&_.react-pdf__Page__textContent_*]:select-none"
               : ""
@@ -1409,7 +1425,8 @@ export function PdfForkEditor({
         >
           <div
             ref={setPageWrapperElement}
-            className="relative overflow-auto rounded-xl bg-[#0b1421] sm:rounded-[24px]"
+            className="relative w-full min-w-0 max-w-full overflow-auto border-t border-[#172033] bg-[#0b1421] sm:rounded-[24px] sm:border-0"
+            style={{ contain: "layout paint" }}
             onTouchStart={handlePdfTouchStart}
             onTouchMove={handlePdfTouchMove}
             onTouchEnd={handlePdfTouchEnd}
@@ -1448,6 +1465,7 @@ export function PdfForkEditor({
                     width: pageBaseWidth,
                     transform: `scale(${pdfZoom})`,
                     transformOrigin: "top left",
+                    willChange: "transform",
                   }}
                 >
                   <Document
@@ -1473,8 +1491,16 @@ export function PdfForkEditor({
                     <Page
                       pageNumber={pageNumber}
                       width={pageBaseWidth}
+                      devicePixelRatio={Math.min(3, Math.max(devicePixelRatio, 2))}
                       renderAnnotationLayer={false}
                       renderTextLayer={true}
+                      onLoadSuccess={(page) => {
+                        const nextAspectRatio = page.originalHeight / page.originalWidth;
+                        if (Number.isFinite(nextAspectRatio) && nextAspectRatio > 0 && pdfPageAspectRatioRef.current !== nextAspectRatio) {
+                          pdfPageAspectRatioRef.current = nextAspectRatio;
+                          setPdfPageAspectRatio(nextAspectRatio);
+                        }
+                      }}
                     />
                   </Document>
                   <div
@@ -1537,7 +1563,7 @@ export function PdfForkEditor({
   };
 
   return (
-    <div className="rounded-[24px] border border-border bg-surface p-3 sm:rounded-[32px] sm:p-6">
+    <div className="min-w-0 max-w-full overflow-hidden rounded-[24px] border border-border bg-surface p-3 sm:rounded-[32px] sm:p-6">
       <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div>
           <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Fork workspace</p>
@@ -1560,7 +1586,7 @@ export function PdfForkEditor({
       ) : null}
 
       {showEditor ? (
-        <div className="rounded-[24px] border border-border bg-background p-3 sm:rounded-[32px] sm:p-6">
+        <div className="min-w-0 max-w-full overflow-hidden rounded-[24px] border border-border bg-background p-3 sm:rounded-[32px] sm:p-6">
           <input
             ref={fileInputRef}
             type="file"
@@ -1638,10 +1664,10 @@ export function PdfForkEditor({
 
           {editorMode === "edit" ? (
             <div className="mt-4 sm:mt-6">
-              <div className="rounded-[20px] border border-border bg-surface p-2 sm:rounded-[24px] sm:p-4">
+              <div className="min-w-0 max-w-full overflow-hidden rounded-[20px] border border-border bg-surface p-2 sm:rounded-[24px] sm:p-4">
                 <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Rendered fork</p>
                 <p className="mt-2 text-sm text-text-muted">Edit directly in this rendered view. PDF and image attachments render inline, and the close button removes the attachment link from the markdown.</p>
-                <div className="mt-2 sm:mt-4">
+                <div className="mt-2 min-w-0 max-w-full sm:mt-4">
                   <MarkdownRenderer
                     markdown={markdown}
                     editable

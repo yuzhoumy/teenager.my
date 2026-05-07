@@ -124,9 +124,9 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
   }, [material.id]);
 
   const renderEmbeddedPdfLink = (href: string, label: string, index: number, prefix: string) => (
-    <div key={`${prefix}-pdf-${index}`} className="space-y-4 rounded-[28px] border border-border bg-[#08131f] p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
+    <div key={`${prefix}-pdf-${index}`} className="-mx-2 w-auto min-w-0 max-w-[calc(100vw-1rem)] space-y-3 overflow-hidden border border-[#172033] bg-[#08131f] p-2 sm:mx-0 sm:max-w-full sm:space-y-4 sm:rounded-[28px] sm:border-border sm:p-5">
+      <div className="flex min-w-0 max-w-full flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground">{label}</p>
           <p className="text-sm text-text-muted">PDF attachment embedded inside the resource.</p>
         </div>
@@ -147,7 +147,7 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
         Back to resources
       </Link>
 
-      <Card className="overflow-hidden rounded-[32px] border-border-strong bg-surface-strong p-0 lg:overflow-visible">
+      <Card className="min-w-0 max-w-full overflow-hidden rounded-[32px] border-border-strong bg-surface-strong p-0 lg:overflow-visible">
         <div className="border-b border-border bg-gradient-to-br from-surface via-background to-surface-muted px-6 py-6 sm:px-8">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-4xl">
@@ -225,12 +225,12 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
           </div>
         </div>
 
-        <div className="px-2 py-3 sm:px-8 sm:py-6">
+        <div className="min-w-0 max-w-full px-2 py-3 sm:px-8 sm:py-6">
           {currentTab === "resource" ? (
-            <div className="grid gap-0 lg:grid-cols-[minmax(0,7fr)_minmax(280px,3fr)] lg:items-start">
-              <article className="border-b border-border pb-6 lg:border-b-0 lg:border-r lg:pr-8">
-                <div className="mx-auto max-w-none">
-                  <div className="prose-reset markdown-readme">
+            <div className="grid min-w-0 max-w-full gap-0 lg:grid-cols-[minmax(0,7fr)_minmax(280px,3fr)] lg:items-start">
+              <article className="min-w-0 border-b border-border pb-6 lg:border-b-0 lg:border-r lg:pr-8">
+                <div className="mx-auto min-w-0 max-w-none">
+                  <div className="prose-reset markdown-readme min-w-0 max-w-full">
                     <MarkdownRenderer
                       markdown={material.content_markdown}
                       renderPdfLink={(href, label, index) => renderEmbeddedPdfLink(href, label, index, "resource")}
@@ -253,7 +253,7 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
                     <section
                       key={fork.id}
                       id={`pinned-fork-${fork.id}`}
-                      className="mt-8 rounded-[28px] border border-border bg-background p-6 scroll-mt-24"
+                      className="mt-8 min-w-0 max-w-full overflow-hidden rounded-[28px] border border-border bg-background p-6 scroll-mt-24"
                     >
                       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
                         <div>

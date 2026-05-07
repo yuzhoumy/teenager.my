@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/TextLayer.css";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, LoaderCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, LoaderCircle, ZoomIn, ZoomOut } from "lucide-react";
 import { downloadAnnotatedPdf } from "@/lib/export-annotated-pdf";
 import { Button } from "@/components/ui/button";
 
@@ -34,6 +34,13 @@ type FabricModule = {
     options: { backgroundColor: string; isDrawingMode: boolean; selection: boolean }
   ) => FabricCanvas;
 };
+const minViewerZoom = 0.75;
+const maxViewerZoom = 3;
+const viewerZoomStep = 0.15;
+
+function clampViewerZoom(value: number) {
+  return Math.min(maxViewerZoom, Math.max(minViewerZoom, Number(value.toFixed(2))));
+}
 
 export function EmbeddedPdfViewer({
   file,
@@ -58,8 +65,14 @@ export function EmbeddedPdfViewer({
   const [pageWrapperElement, setPageWrapperElement] = useState<HTMLDivElement | null>(null);
   const [renderedPageNumber, setRenderedPageNumber] = useState<number | null>(null);
   const [pageWidth, setPageWidth] = useState(0);
+  const [pageAspectRatio, setPageAspectRatio] = useState(4 / 3);
+  const [zoom, setZoom] = useState(1);
+  const [devicePixelRatio, setDevicePixelRatio] = useState(1);
   const canvasSize = useRef({ width: 0, height: 0 });
   const canvasInstanceRef = useRef<FabricCanvas | null>(null);
+  const pageWidthRef = useRef(0);
+  const pageAspectRatioRef = useRef(4 / 3);
+  const [pageMeasureElement, setPageMeasureElement] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,6 +88,10 @@ export function EmbeddedPdfViewer({
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    setDevicePixelRatio(window.devicePixelRatio || 1);
   }, []);
 
   useEffect(() => {
@@ -180,13 +197,14 @@ export function EmbeddedPdfViewer({
     }
 
     const resize = () => {
-      const rect = pageWrapper.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) {
+      const width = pageWrapper.offsetWidth;
+      const height = pageWrapper.offsetHeight;
+      if (width === 0 || height === 0) {
         return;
       }
 
-      const widthRatio = rect.width / (canvasSize.current.width || rect.width);
-      const heightRatio = rect.height / (canvasSize.current.height || rect.height);
+      const widthRatio = width / (canvasSize.current.width || width);
+      const heightRatio = height / (canvasSize.current.height || height);
       const scale = Math.min(widthRatio || 1, heightRatio || 1);
       if (canvasSize.current.width > 0 && scale !== 1) {
         canvas.getObjects().forEach((obj) => {
@@ -198,9 +216,9 @@ export function EmbeddedPdfViewer({
         });
       }
 
-      canvas.setWidth(rect.width);
-      canvas.setHeight(rect.height);
-      canvasSize.current = { width: rect.width, height: rect.height };
+      canvas.setWidth(width);
+      canvas.setHeight(height);
+      canvasSize.current = { width, height };
       canvas.renderAll();
     };
 
@@ -212,24 +230,26 @@ export function EmbeddedPdfViewer({
   }, [pageNumber, renderedPageNumber, pageWrapperElement]);
 
   useEffect(() => {
-    const pageWrapper = pageWrapperElement;
-    if (!pageWrapper) {
+    const pageMeasure = pageMeasureElement;
+    if (!pageMeasure) {
       return;
     }
 
     const updatePageWidth = () => {
-      const nextWidth = Math.floor(pageWrapper.getBoundingClientRect().width);
-      if (nextWidth > 0) {
-        setPageWidth((currentWidth) => (currentWidth === nextWidth ? currentWidth : nextWidth));
+      const viewportWidth = document.documentElement.clientWidth || window.innerWidth || pageMeasure.offsetWidth;
+      const nextWidth = Math.floor(Math.min(pageMeasure.offsetWidth, viewportWidth - 2));
+      if (nextWidth > 0 && pageWidthRef.current !== nextWidth) {
+        pageWidthRef.current = nextWidth;
+        setPageWidth(nextWidth);
       }
     };
 
     const observer = new ResizeObserver(() => updatePageWidth());
-    observer.observe(pageWrapper);
+    observer.observe(pageMeasure);
     updatePageWidth();
 
     return () => observer.disconnect();
-  }, [pageWrapperElement]);
+  }, [pageMeasureElement]);
 
   useEffect(() => {
     const canvas = canvasInstanceRef.current;
@@ -238,14 +258,15 @@ export function EmbeddedPdfViewer({
       return;
     }
 
-    const rect = pageWrapper.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) {
+    const width = pageWrapper.offsetWidth;
+    const height = pageWrapper.offsetHeight;
+    if (width === 0 || height === 0) {
       return;
     }
 
-    canvas.setWidth(rect.width);
-    canvas.setHeight(rect.height);
-    canvasSize.current = { width: rect.width, height: rect.height };
+    canvas.setWidth(width);
+    canvas.setHeight(height);
+    canvasSize.current = { width, height };
     canvas.clear();
     const objects = annotationLayers?.[pageNumber] ?? [];
     if (objects.length === 0) {
@@ -268,6 +289,10 @@ export function EmbeddedPdfViewer({
     setPageInput(`${targetPage}`);
   }
 
+  function changeZoom(delta: number) {
+    setZoom((currentZoom) => clampViewerZoom(currentZoom + delta));
+  }
+
   async function handleDownload() {
     setError("");
     setDownloading(true);
@@ -286,9 +311,13 @@ export function EmbeddedPdfViewer({
     }
   }
 
+  const zoomedPageWidth = pageWidth > 0 ? Math.round(pageWidth * zoom) : 0;
+  const zoomedPageHeight = pageWidth > 0 ? Math.round(pageWidth * pageAspectRatio * zoom) : undefined;
+  const viewerPixelRatio = Math.min(3, Math.max(devicePixelRatio, 2));
+
   return (
-    <div className="rounded-[28px] border border-white/10 bg-[#09101b] p-4">
-      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+    <div className="min-w-0 max-w-full overflow-hidden bg-[#09101b] p-0 sm:rounded-[28px] sm:border sm:border-white/10 sm:p-4">
+      <div className="mb-2 flex min-w-0 max-w-full flex-col gap-3 sm:mb-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" size="sm" variant="ghost" className="h-9 w-9 p-0" onClick={() => jumpToPage(1)} disabled={pageNumber <= 1}>
             <ChevronsLeft className="h-4 w-4" />
@@ -305,6 +334,31 @@ export function EmbeddedPdfViewer({
         </div>
 
         <div className="flex flex-wrap items-center gap-3 text-sm text-text-muted">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-9 w-9 p-0"
+            onClick={() => changeZoom(-viewerZoomStep)}
+            disabled={zoom <= minViewerZoom}
+            aria-label="Zoom out"
+            title="Zoom out"
+          >
+            <ZoomOut className="h-4 w-4" />
+          </Button>
+          <span className="min-w-12 text-center">{Math.round(zoom * 100)}%</span>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-9 w-9 p-0"
+            onClick={() => changeZoom(viewerZoomStep)}
+            disabled={zoom >= maxViewerZoom}
+            aria-label="Zoom in"
+            title="Zoom in"
+          >
+            <ZoomIn className="h-4 w-4" />
+          </Button>
           <span>{pageNumber} / {numPages || "—"}</span>
           <label htmlFor={`pdf-page-${file}`} className="text-sm text-text-muted">Page</label>
           <input
@@ -349,41 +403,75 @@ export function EmbeddedPdfViewer({
 
       {error ? <p className="mb-4 rounded-xl border border-rose-400/30 bg-rose-400/10 px-3 py-2 text-sm text-rose-200">{error}</p> : null}
 
-      <div ref={setPageWrapperElement} className="relative overflow-hidden rounded-[24px] bg-[#0b1421]">
+      <div ref={setPageMeasureElement} className="h-0 w-full min-w-0 max-w-full overflow-hidden" aria-hidden="true" />
+
+      <div
+        className="relative w-full min-w-0 max-w-full overflow-auto border border-[#172033] bg-[#0b1421] sm:rounded-[24px]"
+        style={{ contain: "layout paint", maxHeight: "78vh" }}
+      >
         {loadingFile ? (
           <div className="flex h-72 items-center justify-center text-white/60">
             <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
             Loading PDF...
           </div>
         ) : resolvedFile && pageWidth > 0 ? (
-          <Document
-            file={resolvedFile}
-            loading={
-              <div className="flex h-72 items-center justify-center text-white/60">
-                <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                Loading PDF...
-              </div>
-            }
-            onLoadSuccess={({ numPages: pages }) => {
-              setNumPages(pages);
-              setPageNumber((currentPage) => {
-                const nextPage = Math.min(Math.max(1, currentPage), pages);
-                setPageInput(`${nextPage}`);
-                return nextPage;
-              });
-            }}
-            onLoadError={() => {
-              setError("PDF preview is unavailable here. Open or download the file instead.");
-            }}
+          <div
+            className="relative"
+            style={{ width: zoomedPageWidth, height: zoomedPageHeight, minWidth: "100%" }}
           >
-            <Page
-              pageNumber={pageNumber}
-              width={pageWidth}
-              renderAnnotationLayer={false}
-              renderTextLayer
-              onRenderSuccess={() => setRenderedPageNumber(pageNumber)}
-            />
-          </Document>
+            <div
+              ref={setPageWrapperElement}
+              className="relative"
+              style={{
+                width: pageWidth,
+                transform: `scale(${zoom})`,
+                transformOrigin: "top left",
+                willChange: "transform",
+              }}
+            >
+              <Document
+                file={resolvedFile}
+                loading={
+                  <div className="flex h-72 items-center justify-center text-white/60">
+                    <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                    Loading PDF...
+                  </div>
+                }
+                onLoadSuccess={({ numPages: pages }) => {
+                  setNumPages(pages);
+                  setPageNumber((currentPage) => {
+                    const nextPage = Math.min(Math.max(1, currentPage), pages);
+                    setPageInput(`${nextPage}`);
+                    return nextPage;
+                  });
+                }}
+                onLoadError={() => {
+                  setError("PDF preview is unavailable here. Open or download the file instead.");
+                }}
+              >
+                <Page
+                  pageNumber={pageNumber}
+                  width={pageWidth}
+                  devicePixelRatio={viewerPixelRatio}
+                  renderAnnotationLayer={false}
+                  renderTextLayer
+                  onLoadSuccess={(page) => {
+                    const nextAspectRatio = page.originalHeight / page.originalWidth;
+                    if (Number.isFinite(nextAspectRatio) && nextAspectRatio > 0 && pageAspectRatioRef.current !== nextAspectRatio) {
+                      pageAspectRatioRef.current = nextAspectRatio;
+                      setPageAspectRatio(nextAspectRatio);
+                    }
+                  }}
+                  onRenderSuccess={() => setRenderedPageNumber(pageNumber)}
+                />
+              </Document>
+              <canvas
+                ref={setCanvasElement}
+                className="absolute inset-0 pointer-events-none"
+                style={{ touchAction: "none" }}
+              />
+            </div>
+          </div>
         ) : resolvedFile ? (
           <div className="flex h-72 items-center justify-center text-white/60">
             <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
@@ -394,11 +482,6 @@ export function EmbeddedPdfViewer({
             Preview unavailable for this PDF.
           </div>
         )}
-        <canvas
-          ref={setCanvasElement}
-          className="absolute inset-0 pointer-events-none"
-          style={{ touchAction: "none" }}
-        />
       </div>
     </div>
   );
