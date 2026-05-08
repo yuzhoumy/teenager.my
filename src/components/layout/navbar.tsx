@@ -61,7 +61,7 @@ export function Navbar() {
       <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-3 text-foreground">
           <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-border-strong bg-surface shadow-[0_4px_18px_var(--shadow)]">
-            <img src="favicon.png" alt="icon" className="h-5 w-5" />
+            <img src="/favicon.png" alt="icon" className="h-5 w-5" />
           </span>
           <span className="flex flex-col">
             <span className="font-serif text-xl leading-none">teenager.my</span>
