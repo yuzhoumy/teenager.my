@@ -477,7 +477,7 @@ export function EmbeddedPdfViewer({
           {enableAnnotatedDownload ? (
             <Button type="button" size="sm" variant="outline" onClick={() => void handleDownload()} disabled={downloading}>
               {downloading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              Download
+              {downloading ? "Please be patient to wait PDF be rendered" : "Download"}
             </Button>
           ) : shouldShowDownload && downloadHref ? (
             <Button asChild type="button" size="sm" variant="outline">

@@ -8,6 +8,7 @@ import Link from "next/link";
 import { getMaterialFacets, materialGradeLabels, materialTags, getMaterialTagLabel } from "@/lib/materials";
 import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import type { Database, MaterialGrade, MaterialTag } from "@/types/database";
+import type { StudyMaterial } from "@/types/resource";
 import { MarkdownRenderer } from "@/components/resources/markdown-renderer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +24,7 @@ type EditorMode = "edit" | "raw";
 
 const bucketName = process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET ?? "resource-attachments";
 const currentYear = new Date().getFullYear();
-const initialMarkdown = "# New resource\n\nWrite the overview here.\n\n## Attachment\nUpload a file to add it here.";
+const initialMarkdown = "# Your title\n\n### Click to edit\nYou can use markdown to format the content.\n\n## Attachment\nUpload a file by clicking \"Upload File\" button at the top. You can upload multiple files and place the links anywhere in the content.\n\n---\n\n*Note: Admin will amend the resource before publishing if there are any mistakes.*";
 const fallbackSubjects = [
   "Additional Mathematics",
   "Bahasa Melayu",
@@ -93,16 +94,21 @@ async function uploadResourceAttachment(file: File, userId: string) {
   return data.publicUrl;
 }
 
-export function UploadResourceWorkspace() {
+type UploadResourceWorkspaceProps = {
+  mode?: "create" | "edit";
+  initialMaterial?: StudyMaterial;
+};
+
+export function UploadResourceWorkspace({ mode = "create", initialMaterial }: UploadResourceWorkspaceProps = {}) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [title, setTitle] = useState("");
-  const [grade, setGrade] = useState<MaterialGrade | "">("");
-  const [subject, setSubject] = useState("");
-  const [origin, setOrigin] = useState("");
-  const [year, setYear] = useState(String(currentYear));
-  const [selectedTag, setSelectedTag] = useState<MaterialTag | "">("");
-  const [markdown, setMarkdown] = useState(initialMarkdown);
+  const [title, setTitle] = useState(initialMaterial?.title ?? "");
+  const [grade, setGrade] = useState<MaterialGrade | "">(initialMaterial?.grade ?? "");
+  const [subject, setSubject] = useState(initialMaterial?.subject ?? "");
+  const [origin, setOrigin] = useState(initialMaterial?.origin ?? "");
+  const [year, setYear] = useState(String(initialMaterial?.year ?? currentYear));
+  const [selectedTag, setSelectedTag] = useState<MaterialTag | "">(initialMaterial?.category_tags[0] ?? "");
+  const [markdown, setMarkdown] = useState(initialMaterial?.content_markdown ?? initialMarkdown);
   const [editorMode, setEditorMode] = useState<EditorMode>("edit");
   const [uploadingFile, setUploadingFile] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -228,29 +234,58 @@ export function UploadResourceWorkspace() {
           ? user.user_metadata.display_name.trim()
           : user.email ?? "Student upload";
 
-      const pendingMaterial: Database["public"]["Tables"]["pending_materials"]["Insert"] = {
-        slug: createSlug(trimmedTitle),
-        title: trimmedTitle,
-        core_type: "exercise",
-        content_markdown: trimmedMarkdown,
-        grade,
-        subject: trimmedSubject,
-        category_tags: [selectedTag],
-        year: yearNumber,
-        origin: needsOrigin ? trimmedOrigin : "General",
-        author_name: authorName,
-        uploaded_by: user.id,
-      };
+      if (mode === "edit") {
+        if (!initialMaterial) {
+          throw new Error("Missing resource information for edit mode.");
+        }
 
-      const { error: insertError } = await supabase.from("pending_materials").insert(pendingMaterial as never);
-      if (insertError) {
-        throw insertError;
+        const updatePayload: Database["public"]["Tables"]["materials"]["Update"] = {
+          title: trimmedTitle,
+          content_markdown: trimmedMarkdown,
+          grade,
+          subject: trimmedSubject,
+          category_tags: [selectedTag],
+          year: yearNumber,
+          origin: needsOrigin ? trimmedOrigin : "General",
+          author_name: authorName,
+        };
+
+        const { error: updateError } = await supabase
+          .from("materials")
+          .update(updatePayload as never)
+          .eq("id", initialMaterial.id)
+          .eq("uploaded_by", user.id)
+          .select("id")
+          .single();
+
+        if (updateError) {
+          throw updateError;
+        }
+      } else {
+        const pendingMaterial: Database["public"]["Tables"]["pending_materials"]["Insert"] = {
+          slug: createSlug(trimmedTitle),
+          title: trimmedTitle,
+          core_type: "exercise",
+          content_markdown: trimmedMarkdown,
+          grade,
+          subject: trimmedSubject,
+          category_tags: [selectedTag],
+          year: yearNumber,
+          origin: needsOrigin ? trimmedOrigin : "General",
+          author_name: authorName,
+          uploaded_by: user.id,
+        };
+
+        const { error: insertError } = await supabase.from("pending_materials").insert(pendingMaterial as never);
+        if (insertError) {
+          throw insertError;
+        }
       }
 
-      router.push("/resources");
+      router.push(mode === "edit" && initialMaterial ? `/resources/${initialMaterial.slug}` : "/resources");
       router.refresh();
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Unable to submit resource.");
+      setError(submitError instanceof Error ? submitError.message : `Unable to ${mode === "edit" ? "update" : "submit"} resource.`);
     } finally {
       setSubmitting(false);
     }
@@ -338,7 +373,7 @@ export function UploadResourceWorkspace() {
         <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div>
             <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Upload workspace</p>
-            <h1 className="mt-2 text-3xl text-foreground sm:text-4xl">New resource editor</h1>
+            <h1 className="mt-2 text-3xl text-foreground sm:text-4xl">{mode === "edit" ? "Edit resource" : "New resource editor"}</h1>
           </div>
           <Button type="button" variant="default" onClick={handleSubmitResource} disabled={submitting}>
             {submitting ? (
@@ -346,7 +381,7 @@ export function UploadResourceWorkspace() {
             ) : (
               <Upload className="h-4 w-4" />
             )}
-            {submitting ? "Submitting..." : "Submit for approval"}
+            {submitting ? (mode === "edit" ? "Saving..." : "Submitting...") : (mode === "edit" ? "Save changes" : "Submit for approval")}
           </Button>
         </div>
 

@@ -13,7 +13,6 @@ export function ResourceSidebar({
       <Card className="rounded-[20px] border-border bg-surface/70 p-4 shadow-none">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-soft">Resource sidebar</p>
             <h3 className="mt-2 text-xl text-foreground">Pinned forks</h3>
           </div>
         </div>

@@ -275,23 +275,9 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
                     />
                   </div>
 
-                  {pinnedForks.length > 0 ? (
-                    <nav className="mt-[10px] rounded-[14px] border border-border bg-surface p-[5px] shadow-[0_4px_18px_var(--shadow)] lg:hidden" aria-label="Pinned forks">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-soft">Pinned forks</p>
-                      <div className="mt-[5px] divide-y divide-border">
-                        {pinnedForks.map((fork, index) => (
-                          <a
-                            key={fork.id}
-                            href={`#pinned-fork-${fork.id}`}
-                            className="block rounded-xl px-[5px] py-[7px] text-sm font-semibold text-foreground transition hover:bg-surface-strong hover:text-brand"
-                          >
-                            {fork.pinned_title?.trim() || `Pinned fork ${index + 1}`}
-                            <span className="mt-1 block text-xs font-normal text-text-muted">By {fork.author_name}</span>
-                          </a>
-                        ))}
-                      </div>
-                    </nav>
-                  ) : null}
+                  <div className="mt-[10px] lg:hidden">
+                    <ResourceSidebar pinnedForks={pinnedForks} />
+                  </div>
 
                   {loadingPinnedForks ? (
                     <div className="mt-[10px] border-y border-border py-[5px] text-sm text-text-muted sm:mt-8 sm:rounded-[24px] sm:border sm:bg-surface sm:p-5">
@@ -337,7 +323,7 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
                 </div>
               </article>
 
-              <aside className="px-6 py-6 lg:sticky lg:top-10 lg:mt-4 lg:max-h-[calc(100vh-4rem)] lg:self-start lg:overflow-y-auto lg:px-6">
+              <aside className="hidden px-6 py-6 lg:sticky lg:top-10 lg:mt-4 lg:block lg:max-h-[calc(100vh-4rem)] lg:self-start lg:overflow-y-auto lg:px-6">
                 <ResourceSidebar pinnedForks={pinnedForks} />
               </aside>
             </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye } from "lucide-react";
+import { Eye, Pencil, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -14,11 +14,6 @@ import { getMaterialHref } from "@/lib/materials";
 import type { Database } from "@/types/database";
 import type { StudyMaterial } from "@/types/resource";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
-
-const placeholderUploads = [
-  "Form 3 Science Notes - Chapter 6",
-  "Form 1 BM Notes - Tatabahasa",
-];
 
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 type MaterialBookmarkRow = Database["public"]["Tables"]["material_bookmarks"]["Row"];
@@ -40,6 +35,9 @@ export default function ProfilePage() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [savedResources, setSavedResources] = useState<StudyMaterial[]>([]);
   const [loadingSavedResources, setLoadingSavedResources] = useState(false);
+  const [uploadedResources, setUploadedResources] = useState<StudyMaterial[]>([]);
+  const [loadingUploadedResources, setLoadingUploadedResources] = useState(false);
+  const [deletingResourceId, setDeletingResourceId] = useState<string | null>(null);
 
   const avatarPreview = useMemo(() => avatarUrl.trim(), [avatarUrl]);
 
@@ -72,6 +70,7 @@ export default function ProfilePage() {
       setIsLoggedIn(true);
       setUserId(user.id);
       setLoadingSavedResources(true);
+      setLoadingUploadedResources(true);
 
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
@@ -113,28 +112,43 @@ export default function ProfilePage() {
 
       if (materialIds.length === 0) {
         setSavedResources([]);
-        setLoadingSavedResources(false);
-        setLoadingProfile(false);
-        return;
+      } else {
+        const { data: materialsData, error: materialsError } = await supabase
+          .from("materials")
+          .select("*")
+          .in("id", materialIds)
+          .order("year", { ascending: false })
+          .order("created_at", { ascending: false });
+
+        if (materialsError) {
+          setError(materialsError.message);
+          setLoadingSavedResources(false);
+          setLoadingUploadedResources(false);
+          setLoadingProfile(false);
+          return;
+        }
+
+        const materials = (materialsData ?? []) as MaterialRow[];
+        setSavedResources(materials as StudyMaterial[]);
       }
 
-      const { data: materialsData, error: materialsError } = await supabase
+      setLoadingSavedResources(false);
+
+      const { data: uploadedData, error: uploadedError } = await supabase
         .from("materials")
         .select("*")
-        .in("id", materialIds)
-        .order("year", { ascending: false })
+        .eq("uploaded_by", user.id)
         .order("created_at", { ascending: false });
 
-      if (materialsError) {
-        setError(materialsError.message);
-        setLoadingSavedResources(false);
+      if (uploadedError) {
+        setError(uploadedError.message);
+        setLoadingUploadedResources(false);
         setLoadingProfile(false);
         return;
       }
 
-      const materials = (materialsData ?? []) as MaterialRow[];
-      setSavedResources(materials as StudyMaterial[]);
-      setLoadingSavedResources(false);
+      setUploadedResources((uploadedData ?? []) as StudyMaterial[]);
+      setLoadingUploadedResources(false);
       setLoadingProfile(false);
     }
 
@@ -244,6 +258,40 @@ export default function ProfilePage() {
     }
 
     router.replace("/login");
+  }
+
+  async function deleteUploadedResource(resource: StudyMaterial) {
+    setError("");
+    setStatus("");
+
+    if (!userId) {
+      setError("Please log in to delete uploaded resources.");
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete "${resource.title}"? This cannot be undone.`);
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingResourceId(resource.id);
+
+    const { error: deleteError } = await supabase
+      .from("materials")
+      .delete()
+      .eq("id", resource.id)
+      .eq("uploaded_by", userId);
+
+    setDeletingResourceId(null);
+
+    if (deleteError) {
+      setError(deleteError.message);
+      return;
+    }
+
+    setUploadedResources((current) => current.filter((item) => item.id !== resource.id));
+    setSavedResources((current) => current.filter((item) => item.id !== resource.id));
+    setStatus("Resource deleted.");
   }
 
   return (
@@ -357,13 +405,52 @@ export default function ProfilePage() {
 
       <Card>
         <h2 className="mb-2 font-semibold">Uploaded Resources</h2>
-        <ul className="space-y-2 text-sm text-foreground/70">
-          {placeholderUploads.map((item) => (
-            <li key={item} className="rounded-lg bg-foreground/5 px-3 py-2">
-              {item}
-            </li>
-          ))}
-        </ul>
+        {loadingUploadedResources ? (
+          <p className="text-sm text-foreground/70">Loading uploaded resources...</p>
+        ) : uploadedResources.length === 0 ? (
+          <p className="text-sm text-foreground/70">No uploaded resources yet.</p>
+        ) : (
+          <ul className="space-y-2">
+            {uploadedResources.map((resource) => {
+              return (
+                <li key={resource.id} className="rounded-lg bg-foreground/5 px-3 py-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="font-medium text-foreground">{resource.title}</p>
+                      <p className="text-sm text-foreground/70">
+                        {resource.subject} &bull; {resource.year} &bull; {resource.origin}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={getMaterialHref(resource)}>
+                          <Eye className="h-4 w-4" />
+                          View
+                        </Link>
+                      </Button>
+                      <Button asChild type="button" size="sm" variant="secondary">
+                        <Link href={`/resources/${resource.slug}/edit`}>
+                          <Pencil className="h-4 w-4" />
+                          Edit
+                        </Link>
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void deleteUploadedResource(resource)}
+                        disabled={deletingResourceId === resource.id}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        {deletingResourceId === resource.id ? "Deleting..." : "Delete"}
+                      </Button>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </Card>
     </section>
   );

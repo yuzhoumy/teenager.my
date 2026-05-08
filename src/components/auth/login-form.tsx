@@ -40,7 +40,7 @@ export function LoginForm() {
       return;
     }
 
-    setStatus("Login successful. Redirect logic will be added in Phase 2.");
+    setStatus("Login successful.");
     setLoading(false);
     router.replace("/profile");
   }

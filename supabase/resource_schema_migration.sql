@@ -159,6 +159,15 @@ drop policy if exists "Allow users to select own forks" on public.user_forks;
 create policy "Allow public to select forks" on public.user_forks
   for select
   using (true);
+drop policy if exists "Allow users to update own uploaded materials" on public.materials;
+create policy "Allow users to update own uploaded materials" on public.materials
+  for update
+  using (auth.uid() = uploaded_by)
+  with check (auth.uid() = uploaded_by);
+drop policy if exists "Allow users to delete own uploaded materials" on public.materials;
+create policy "Allow users to delete own uploaded materials" on public.materials
+  for delete
+  using (auth.uid() = uploaded_by);
 drop policy if exists "Allow users to update own forks" on public.user_forks;
 create policy "Allow users to update own forks" on public.user_forks
   for update

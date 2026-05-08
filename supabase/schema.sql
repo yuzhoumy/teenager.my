@@ -171,6 +171,17 @@ create policy "Allow public selects on materials" on public.materials
   for select
   using (true);
 
+drop policy if exists "Allow users to update own uploaded materials" on public.materials;
+create policy "Allow users to update own uploaded materials" on public.materials
+  for update
+  using (auth.uid() = uploaded_by)
+  with check (auth.uid() = uploaded_by);
+
+drop policy if exists "Allow users to delete own uploaded materials" on public.materials;
+create policy "Allow users to delete own uploaded materials" on public.materials
+  for delete
+  using (auth.uid() = uploaded_by);
+
 create table if not exists public.material_bookmarks (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
