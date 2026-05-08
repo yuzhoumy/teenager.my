@@ -1,39 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, Home, Moon, Sun, Upload, User } from "lucide-react";
-import { useEffect, useState, useSyncExternalStore } from "react";
-import { Button } from "@/components/ui/button";
+import { BookOpen, Home, Upload, User } from "lucide-react";
+import { useEffect, useState } from "react";
 import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 export function MobileBottomNav() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [themeVersion, setThemeVersion] = useState(0);
-  const hasMounted = useSyncExternalStore(
-    () => () => undefined,
-    () => true,
-    () => false,
-  );
-
-  const theme =
-    hasMounted &&
-    (window.localStorage.getItem("app.theme") === "light" || window.localStorage.getItem("app.theme") === "dark")
-      ? (window.localStorage.getItem("app.theme") as "light" | "dark")
-      : hasMounted && window.matchMedia?.("(prefers-color-scheme: dark)")?.matches
-        ? "dark"
-        : "light";
-  const themeAriaLabel = theme === "dark" ? "Switch to light mode" : "Switch to dark mode";
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-  }, [theme, hasMounted, themeVersion]);
-
-  const toggleTheme = () => {
-    const next = theme === "dark" ? "light" : "dark";
-    window.localStorage.setItem("app.theme", next);
-    document.documentElement.dataset.theme = next;
-    setThemeVersion((current) => current + 1);
-  };
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -52,8 +25,8 @@ export function MobileBottomNav() {
   }, []);
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-3 py-3 backdrop-blur xl:hidden">
-      <div className="mx-auto flex max-w-md flex-col gap-3 rounded-[28px] border border-border bg-surface p-3 shadow-[0_12px_40px_var(--shadow)]">
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur xl:hidden">
+      <div className="mx-auto max-w-md rounded-[22px] border border-border bg-surface px-2 py-2 shadow-[0_12px_40px_var(--shadow)]">
         <div className="grid grid-cols-4 gap-2">
           <Link href="/" className="flex flex-col items-center gap-1 rounded-2xl py-2 text-xs text-text-muted">
             <Home className="h-4 w-4" />
@@ -74,11 +47,6 @@ export function MobileBottomNav() {
             <User className="h-4 w-4" />
             {isLoggedIn ? "Profile" : "Login"}
           </Link>
-        </div>
-        <div className="flex items-center justify-center gap-2">
-          <Button variant="ghost" size="sm" onClick={toggleTheme} aria-label={themeAriaLabel}>
-            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </Button>
         </div>
       </div>
     </nav>

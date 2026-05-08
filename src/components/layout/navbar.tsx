@@ -109,6 +109,16 @@ export function Navbar() {
             </Link>
           </Button>
         </nav>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="rounded-full border border-border bg-surface shadow-[0_0_0_1px_var(--border)] lg:hidden"
+          onClick={toggleTheme}
+          aria-label={themeAriaLabel}
+        >
+          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </Button>
       </div>
     </header>
   );
