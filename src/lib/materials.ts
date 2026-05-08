@@ -162,7 +162,11 @@ export function getMaterialTagLabel(tag: MaterialTag) {
   return materialTagLabels[tag];
 }
 
-export function getMaterialHref(material: Pick<StudyMaterial, "slug">) {
+export function getMaterialHref(material: Pick<StudyMaterial, "slug" | "uploaded_by">) {
+  if (material.uploaded_by) {
+    return `/resources?resource=${encodeURIComponent(material.slug)}`;
+  }
+
   return `/resources/${material.slug}`;
 }
 

@@ -1,14 +1,20 @@
 "use client";
 
-import type { FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import {
+  getMaterialBySlug,
   getMaterialGradeLabel,
   getMaterialTagLabel,
   groupMaterialsBySubject,
 } from "@/lib/materials";
 import { ResourceCard } from "@/components/resources/resource-card";
+import { ResourceDetailClientShell } from "@/components/resources/resource-detail-client-shell";
 import { ResourceFiltersBar } from "@/components/resources/resource-filters";
 import { useMaterialFilters, useMaterialsQuery } from "@/components/resources/use-material-filters";
+import type { StudyMaterial } from "@/types/resource";
 
 function ActiveFiltersSummary({ filters }: { filters: ReturnType<typeof useMaterialsQuery>["filters"] }) {
   const tokens = [
@@ -35,7 +41,80 @@ function ActiveFiltersSummary({ filters }: { filters: ReturnType<typeof useMater
   );
 }
 
+function SelectedResourceView({ slug }: { slug: string }) {
+  const [material, setMaterial] = useState<StudyMaterial | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadMaterial() {
+      setLoading(true);
+      setError("");
+
+      try {
+        const nextMaterial = await getMaterialBySlug(slug);
+        if (!cancelled) {
+          setMaterial(nextMaterial);
+          setError(nextMaterial ? "" : "Resource not found.");
+        }
+      } catch (loadError) {
+        if (!cancelled) {
+          setMaterial(null);
+          setError(loadError instanceof Error ? loadError.message : "Unable to load this resource.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadMaterial();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+
+  if (loading) {
+    return (
+      <section className="space-y-6">
+        <Link href="/resources" className="inline-flex items-center gap-2 text-sm font-medium text-text-muted hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" />
+          Back to resources
+        </Link>
+        <div className="rounded-[30px] border border-border bg-surface p-8 shadow-[0_4px_24px_var(--shadow)]">
+          <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Resource viewer</p>
+          <h1 className="mt-2 text-4xl text-foreground sm:text-5xl">Loading resource...</h1>
+        </div>
+      </section>
+    );
+  }
+
+  if (!material) {
+    return (
+      <section className="space-y-6">
+        <Link href="/resources" className="inline-flex items-center gap-2 text-sm font-medium text-text-muted hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" />
+          Back to resources
+        </Link>
+        <div className="rounded-[30px] border border-border bg-surface p-8 shadow-[0_4px_24px_var(--shadow)]">
+          <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Resource viewer</p>
+          <h1 className="mt-2 text-4xl text-foreground sm:text-5xl">Resource not found</h1>
+          <p className="mt-3 text-sm text-[#b53333]">{error}</p>
+        </div>
+      </section>
+    );
+  }
+
+  return <ResourceDetailClientShell material={material} />;
+}
+
 export function ResourcesPageClient() {
+  const searchParams = useSearchParams();
+  const selectedResourceSlug = searchParams.get("resource")?.trim() ?? "";
   const { filters, facets, materials, loading, error } = useMaterialsQuery();
   const { setSearchText } = useMaterialFilters();
 
@@ -43,6 +122,10 @@ export function ResourcesPageClient() {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     setSearchText(`${formData.get("query") ?? ""}`.trim());
+  }
+
+  if (selectedResourceSlug) {
+    return <SelectedResourceView slug={selectedResourceSlug} />;
   }
 
   if (error && !facets) {
