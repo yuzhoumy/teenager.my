@@ -333,6 +333,7 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
               materialSlug={material.slug}
               sourceUrl={primaryPdf?.href ?? ""}
               initialMarkdown={displayMaterial.content_markdown}
+              mode="tab"
             />
           ) : (
             <ResourceDiscussionThread materialId={material.id} />

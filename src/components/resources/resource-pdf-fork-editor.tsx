@@ -240,11 +240,15 @@ export function PdfForkEditor({
   materialSlug,
   sourceUrl,
   initialMarkdown,
+  mode = "tab",
+  initialForkId,
 }: {
   materialId: string;
   materialSlug: string;
   sourceUrl: string;
   initialMarkdown: string;
+  mode?: "tab" | "editor";
+  initialForkId?: string;
 }) {
   const router = useRouter();
   const [numPages, setNumPages] = useState(0);
@@ -279,6 +283,8 @@ export function PdfForkEditor({
   const loadingOtherForks = loadingForkCards;
   const otherForksError = forkCardsError;
   const otherForks = forkCards;
+  const showCollections = mode === "tab";
+  const shouldShowEditor = mode === "editor" || showEditor;
 
   const pdfLinks = useMemo(() => {
     const pattern = /\[([^\]]+)\]\(([^)]+)\)/g;
@@ -537,14 +543,19 @@ export function PdfForkEditor({
           return;
         }
 
-        const { data, error: queryError } = await supabase
+        let forkQuery = supabase
           .from("user_forks")
           .select("*")
           .eq("user_id", user.id)
           .eq("material_id", materialId)
           .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+          .limit(1);
+
+        if (initialForkId) {
+          forkQuery = forkQuery.eq("id", initialForkId);
+        }
+
+        const { data, error: queryError } = await forkQuery.maybeSingle();
 
         if (queryError) {
           throw queryError;
@@ -574,7 +585,7 @@ export function PdfForkEditor({
     return () => {
       cancelled = true;
     };
-  }, [materialId, sourceUrl, initialMarkdown]);
+  }, [initialForkId, materialId, sourceUrl, initialMarkdown]);
 
   useEffect(() => {
     toolRef.current = tool;
@@ -1111,6 +1122,11 @@ export function PdfForkEditor({
   };
 
   const handleCreateFork = async () => {
+    if (mode === "tab") {
+      router.push(`/resources/${materialSlug}/fork`);
+      return;
+    }
+
     setError("");
 
     try {
@@ -1136,6 +1152,10 @@ export function PdfForkEditor({
     setSavingMarkdown(true);
 
     try {
+      if (initialForkId && !fork) {
+        throw new Error("Unable to load the fork you are editing.");
+      }
+
       const activeFork = fork ?? (await createNewFork());
       const { data: updatedFork, error: updateError } = await supabase
         .from("user_forks")
@@ -1178,6 +1198,11 @@ export function PdfForkEditor({
   };
 
   const handleEditFork = (forkCard: ForkCardData) => {
+    if (mode === "tab") {
+      router.push(`/resources/${materialSlug}/fork?forkId=${forkCard.id}`);
+      return;
+    }
+
     setError("");
     setFork(forkCard);
     setForkTitle(forkCard.pinned_title ?? "");
@@ -1234,6 +1259,10 @@ export function PdfForkEditor({
       const user = await getSupabaseUser();
       if (!user) {
         throw new Error("Please log in to upload attachments.");
+      }
+
+      if (initialForkId && !fork) {
+        throw new Error("Unable to load the fork you are editing.");
       }
 
       await ensureFork();
@@ -1305,7 +1334,7 @@ export function PdfForkEditor({
   );
 
   const renderPdfLink = (href: string, label: string, index: number) => {
-    if (!showEditor) {
+    if (!shouldShowEditor) {
       return (
         <a
           key={`pdf-link-${index}`}
@@ -1326,7 +1355,7 @@ export function PdfForkEditor({
     const zoomedStageHeight = Math.round(pageBaseWidth * pdfPageAspectRatio * pdfZoom);
 
     return (
-      <div key={`pdf-editor-${index}`} className="-mx-2 mb-3 w-auto min-w-0 max-w-[calc(100vw-1rem)] overflow-hidden border border-[#172033] bg-[#08131f] sm:mx-0 sm:mb-6 sm:max-w-full sm:rounded-[28px] sm:border-border sm:p-5">
+      <div key={`pdf-editor-${index}`} className="relative left-1/2 mb-3 w-[calc(100vw-10px)] max-w-[calc(100vw-10px)] -translate-x-1/2 overflow-hidden bg-[#08131f] sm:left-auto sm:mb-6 sm:w-auto sm:max-w-full sm:translate-x-0 sm:rounded-[28px] sm:border sm:border-border sm:p-5">
         <div className="flex min-w-0 max-w-full flex-wrap items-start justify-between gap-2 px-2 py-2 sm:mb-4 sm:gap-3 sm:px-0 sm:py-0">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-foreground">{label}</p>
@@ -1478,7 +1507,7 @@ export function PdfForkEditor({
         >
           <div
             ref={setPageWrapperElement}
-            className="relative w-full min-w-0 max-w-full overflow-auto border-t border-[#172033] bg-[#0b1421] sm:rounded-[24px] sm:border-0"
+            className="relative w-full min-w-0 max-w-full overflow-auto bg-[#0b1421] sm:rounded-[24px] sm:border-0"
             style={{ contain: "layout paint" }}
             onTouchStart={handlePdfTouchStart}
             onTouchMove={handlePdfTouchMove}
@@ -1578,7 +1607,7 @@ export function PdfForkEditor({
   };
 
   const renderImageLink = (href: string, label: string, index: number) => {
-    if (!showEditor) {
+    if (!shouldShowEditor) {
       return (
         <a
           key={`image-link-${index}`}
@@ -1593,7 +1622,7 @@ export function PdfForkEditor({
     }
 
     return (
-      <div key={`image-editor-${index}`} className="mb-6 rounded-[28px] border border-border bg-[#08131f] p-5">
+      <div key={`image-editor-${index}`} className="mx-[5px] mb-6 rounded-[28px] border border-border bg-[#08131f] p-5 sm:mx-0">
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-foreground">{label}</p>
@@ -1639,30 +1668,30 @@ export function PdfForkEditor({
   );
 
   return (
-    <div className="min-w-0 max-w-full overflow-hidden rounded-[24px] border border-border bg-surface p-3 sm:rounded-[32px] sm:p-6">
-      <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        <div>
+    <div className="min-w-0 max-w-full overflow-hidden bg-surface p-0 sm:rounded-[32px] sm:border sm:border-border sm:p-6">
+      <div className="mb-4 flex flex-col gap-3 px-[5px] sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-0">
+        <div className="hidden sm:block">
           <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Fork workspace</p>
           <h2 className="mt-2 text-2xl text-foreground">Live markdown fork editor</h2>
         </div>
-        {!showEditor ? (
+        {showCollections || (!shouldShowEditor && !showCollections) ? (
           <Button type="button" size="sm" variant="default" onClick={handleCreateFork} disabled={loadingFork || savingMarkdown}>
             Create new fork
           </Button>
         ) : null}
       </div>
 
-      {error ? <p className="mb-4 rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">{error}</p> : null}
+      {error ? <p className="mx-[5px] mb-4 rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200 sm:mx-0">{error}</p> : null}
 
-      {!showEditor ? (
-        <div className="rounded-[20px] border border-border bg-background p-3 sm:rounded-[24px] sm:p-4">
+      {!shouldShowEditor && !showCollections ? (
+        <div className="mx-[5px] bg-background p-3 sm:mx-0 sm:rounded-[24px] sm:border sm:border-border sm:p-4">
           <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Start editing</p>
           <p className="mt-2 text-sm text-text-muted">Click “Create new fork” to open the full-width editor, manage attachments, and edit the markdown live.</p>
         </div>
       ) : null}
 
-      {showEditor ? (
-        <div className="min-w-0 max-w-full overflow-hidden rounded-[24px] border border-border bg-background p-3 sm:rounded-[32px] sm:p-6">
+      {shouldShowEditor && !showCollections ? (
+        <div className="min-w-0 max-w-full overflow-visible bg-transparent p-0 sm:overflow-hidden sm:rounded-[32px] sm:border sm:border-border sm:bg-background sm:p-6">
           <input
             ref={fileInputRef}
             type="file"
@@ -1670,10 +1699,10 @@ export function PdfForkEditor({
             onChange={handleUploadFile}
           />
 
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-4 px-[5px] sm:px-0 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Fork editor</p>
-              <p className="mt-1 text-sm text-text-muted">Edit your fork with live markdown rendering, inline PDF viewing, and direct attachment controls.</p>
+              <p className="text-sm uppercase ml-3 tracking-[0.18em] text-text-soft">Fork editor</p>
+              <p className="mt-1 hidden text-sm text-text-muted sm:block">Edit your fork with live markdown rendering, inline PDF viewing, and direct attachment controls.</p>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
@@ -1696,7 +1725,7 @@ export function PdfForkEditor({
             </div>
           </div>
 
-          <div className="mt-4 space-y-3 rounded-[20px] border border-border bg-surface p-3 sm:mt-6 sm:space-y-4 sm:rounded-[24px] sm:p-4">
+          <div className="mx-[5px] mt-4 space-y-3 rounded-[20px] border border-border bg-surface p-3 sm:mx-0 sm:mt-6 sm:space-y-4 sm:rounded-[24px] sm:p-4 mx-2">
             <div>
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Title</p>
@@ -1723,13 +1752,13 @@ export function PdfForkEditor({
 
           {editorMode === "edit" ? (
             <div className="mt-4 sm:mt-6">
-              <div className="min-w-0 max-w-full overflow-hidden rounded-[20px] border border-border bg-surface p-2 sm:rounded-[24px] sm:p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Rendered fork</p>
+              <div className="min-w-0 max-w-full overflow-visible bg-transparent p-0 sm:overflow-hidden sm:rounded-[24px] sm:border sm:border-border sm:bg-surface sm:p-4">
+                <div className="flex flex-col gap-3 px-[5px] sm:flex-row sm:items-center sm:justify-between sm:px-0">
+                  <p className="hidden text-sm uppercase tracking-[0.18em] text-text-soft sm:block">Rendered fork</p>
                   {editorModeToggle}
                 </div>
-                <p className="mt-2 text-sm text-text-muted">Edit directly in this rendered view. PDF and image attachments render inline, and the close button removes the attachment link from the markdown.</p>
-                <div className="mt-2 min-w-0 max-w-full sm:mt-4">
+                <p className="mt-2 hidden text-sm text-text-muted sm:block">Edit directly in this rendered view. PDF and image attachments render inline, and the close button removes the attachment link from the markdown.</p>
+                <div className="mt-2 min-w-0 max-w-full px-[5px] sm:mt-4 sm:px-0">
                   <MarkdownRenderer
                     markdown={markdown}
                     editable
@@ -1741,14 +1770,14 @@ export function PdfForkEditor({
               </div>
             </div>
           ) : (
-            <div className="mt-4 rounded-[20px] border border-border bg-surface p-3 sm:mt-6 sm:rounded-[24px] sm:p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Raw markdown</p>
+            <div className="mt-4 bg-transparent p-0 sm:mt-6 sm:rounded-[24px] sm:border sm:border-border sm:bg-surface sm:p-4">
+              <div className="flex flex-col gap-3 px-[5px] sm:flex-row sm:items-center sm:justify-between sm:px-0">
+                <p className="hidden text-sm uppercase tracking-[0.18em] text-text-soft sm:block">Raw markdown</p>
                 {editorModeToggle}
               </div>
-              <p className="mt-2 text-sm text-text-muted">Edit the source directly when you need exact markdown control.</p>
+              <p className="mt-2 hidden text-sm text-text-muted sm:block">Edit the source directly when you need exact markdown control.</p>
               <Textarea
-                className="mt-4 min-h-[620px] border border-border bg-[#0e1118] text-white"
+                className="mx-[5px] mt-4 min-h-[620px] w-[calc(100%-10px)] border border-border bg-[#0e1118] text-white sm:mx-0 sm:w-full"
                 value={markdown}
                 onChange={(event) => setMarkdown(event.target.value)}
                 placeholder="Write your fork notes or edits in markdown..."
@@ -1758,7 +1787,7 @@ export function PdfForkEditor({
         </div>
       ) : null}
 
-      <div className="mt-6 space-y-6">
+      {showCollections ? <div className="mt-6 space-y-6 px-[5px] sm:px-0">
         {forkActionError ? <p className="rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">{forkActionError}</p> : null}
 
         <div className="rounded-[24px] border border-border bg-background p-4">
@@ -1829,9 +1858,9 @@ export function PdfForkEditor({
             )}
           </div>
         </div>
-      </div>
+      </div> : null}
 
-      <div className="hidden mt-6 rounded-[24px] border border-border bg-background p-4">
+      {showCollections ? <div className="hidden mt-6 rounded-[24px] border border-border bg-background p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Other people’s forks</p>
@@ -1860,7 +1889,7 @@ export function PdfForkEditor({
             <p className="text-sm text-text-muted">No other forks have been created for this resource yet.</p>
           )}
         </div>
-      </div>
+      </div> : null}
     </div>
   );
 }

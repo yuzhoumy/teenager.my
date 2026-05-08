@@ -353,7 +353,7 @@ export default function ProfilePage() {
             ) : null}
             {error ? <p className="text-sm text-rose-600">{error}</p> : null}
             {status ? <p className="text-sm text-emerald-600">{status}</p> : null}
-            <Button type="submit" disabled={saving || loadingProfile}>
+            <Button type="submit" disabled={saving || loadingProfile} className="mr-2">
               {saving ? "Saving..." : "Save profile"}
             </Button>
             <Button type="button" variant="outline" onClick={onLogout}>
