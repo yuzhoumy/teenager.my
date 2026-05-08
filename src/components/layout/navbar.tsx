@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 const futureModules = [
-  "Study Room",
-  "Rewards/Streaks",
+  "Notifications",
+  "Streaks",
 ] as const;
 
 export function Navbar() {
