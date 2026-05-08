@@ -224,6 +224,63 @@ export type Database = {
         };
         Update: Partial<Database["public"]["Tables"]["material_discussions"]["Insert"]>;
       };
+      forum_posts: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          author_name: string;
+          title: string;
+          tag: string;
+          markdown: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          author_name: string;
+          title: string;
+          tag: string;
+          markdown: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["forum_posts"]["Insert"]>;
+      };
+      forum_comments: {
+        Row: {
+          id: string;
+          post_id: string;
+          parent_comment_id: string | null;
+          user_id: string | null;
+          author_name: string;
+          body: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          parent_comment_id?: string | null;
+          user_id?: string | null;
+          author_name: string;
+          body: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["forum_comments"]["Insert"]>;
+      };
+      forum_post_loves: {
+        Row: {
+          id: string;
+          post_id: string;
+          user_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          user_id: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["forum_post_loves"]["Insert"]>;
+      };
     };
   };
 };

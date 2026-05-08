@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, Moon, Sun, Upload, UserCircle2 } from "lucide-react";
+import { BookOpen, MessageSquare, Moon, Sun, Upload, UserCircle2 } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
@@ -80,6 +80,9 @@ export function Navbar() {
           </Link>
           <Link href="/search" className="text-sm text-text-muted hover:text-foreground">
             Resources
+          </Link>
+          <Link href="/forum" className="inline-flex items-center gap-2 text-sm text-text-muted hover:text-foreground">
+            Forum
           </Link>
           <Link href={isLoggedIn ? "/resources/upload" : "/login"} className="inline-flex items-center gap-2 text-sm font-semibold text-brand hover:text-brand-soft">
             <Upload className="h-4 w-4" />

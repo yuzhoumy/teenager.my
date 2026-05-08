@@ -349,6 +349,77 @@ create policy "Allow authenticated inserts on material discussions" on public.ma
   for insert
   with check (auth.role() = 'authenticated' and auth.uid() = user_id);
 
+create table if not exists public.forum_posts (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete set null,
+  author_name text not null,
+  title text not null,
+  tag text not null check (tag in ('General', 'Homework Help', 'Exam Prep', 'Notes', 'Study Tips', 'Subject Question')),
+  markdown text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.forum_posts enable row level security;
+
+drop policy if exists "Allow public selects on forum posts" on public.forum_posts;
+create policy "Allow public selects on forum posts" on public.forum_posts
+  for select
+  using (true);
+
+drop policy if exists "Allow authenticated inserts on forum posts" on public.forum_posts;
+create policy "Allow authenticated inserts on forum posts" on public.forum_posts
+  for insert
+  with check (auth.role() = 'authenticated' and auth.uid() = user_id);
+
+create table if not exists public.forum_comments (
+  id uuid primary key default gen_random_uuid(),
+  post_id uuid not null references public.forum_posts(id) on delete cascade,
+  parent_comment_id uuid references public.forum_comments(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete set null,
+  author_name text not null,
+  body text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.forum_comments add column if not exists parent_comment_id uuid references public.forum_comments(id) on delete cascade;
+
+alter table public.forum_comments enable row level security;
+
+drop policy if exists "Allow public selects on forum comments" on public.forum_comments;
+create policy "Allow public selects on forum comments" on public.forum_comments
+  for select
+  using (true);
+
+drop policy if exists "Allow authenticated inserts on forum comments" on public.forum_comments;
+create policy "Allow authenticated inserts on forum comments" on public.forum_comments
+  for insert
+  with check (auth.role() = 'authenticated' and auth.uid() = user_id);
+
+create table if not exists public.forum_post_loves (
+  id uuid primary key default gen_random_uuid(),
+  post_id uuid not null references public.forum_posts(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (post_id, user_id)
+);
+
+alter table public.forum_post_loves enable row level security;
+
+drop policy if exists "Allow public selects on forum post loves" on public.forum_post_loves;
+create policy "Allow public selects on forum post loves" on public.forum_post_loves
+  for select
+  using (true);
+
+drop policy if exists "Allow users to love forum posts once" on public.forum_post_loves;
+create policy "Allow users to love forum posts once" on public.forum_post_loves
+  for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Allow users to remove own forum post loves" on public.forum_post_loves;
+create policy "Allow users to remove own forum post loves" on public.forum_post_loves
+  for delete
+  using (auth.uid() = user_id);
+
 create table if not exists public.pending_materials (
   id uuid primary key default gen_random_uuid(),
   slug text not null unique,
@@ -400,6 +471,12 @@ create index if not exists idx_fork_stars_fork_id on public.fork_stars (fork_id)
 create index if not exists idx_fork_stars_user_id on public.fork_stars (user_id);
 create index if not exists idx_annotations_fork_id on public.annotations (fork_id);
 create index if not exists idx_material_discussions_material_id on public.material_discussions (material_id);
+create index if not exists idx_forum_posts_created_at on public.forum_posts (created_at desc);
+create index if not exists idx_forum_posts_tag on public.forum_posts (tag);
+create index if not exists idx_forum_comments_post_id on public.forum_comments (post_id, created_at asc);
+create index if not exists idx_forum_comments_parent_comment_id on public.forum_comments (parent_comment_id);
+create index if not exists idx_forum_post_loves_post_id on public.forum_post_loves (post_id);
+create index if not exists idx_forum_post_loves_user_id on public.forum_post_loves (user_id);
 
 DO $$
 BEGIN

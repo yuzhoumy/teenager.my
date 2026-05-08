@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, Home, Upload, User } from "lucide-react";
+import { BookOpen, Home, MessageSquare, Upload, User } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
@@ -43,6 +43,12 @@ export function MobileBottomNav() {
       active: currentPath === "/resources/upload",
     },
     {
+      href: "/forum",
+      label: "Forum",
+      icon: MessageSquare,
+      active: currentPath === "/forum",
+    },
+    {
       href: isLoggedIn ? "/profile" : "/login",
       label: isLoggedIn ? "Profile" : "Login",
       icon: User,
@@ -55,7 +61,7 @@ export function MobileBottomNav() {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur xl:hidden">
       <div className="mx-auto max-w-md rounded-[22px] border border-border bg-surface px-2 py-2 shadow-[0_12px_40px_var(--shadow)]">
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-5 gap-2">
           {navItems.map((item) => {
             const Icon = item.icon;
 
