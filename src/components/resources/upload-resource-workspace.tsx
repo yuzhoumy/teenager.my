@@ -211,8 +211,8 @@ export function UploadResourceWorkspace({ mode = "create", initialMaterial }: Up
       return;
     }
 
-    if (!Number.isFinite(yearNumber) || yearNumber < 2000 || yearNumber > 2100) {
-      setError("Please enter a valid year between 2000 and 2100.");
+    if (!Number.isFinite(yearNumber) || yearNumber < 1900 || yearNumber > 2100) {
+      setError("Please enter a valid year between 1900 and 2100.");
       return;
     }
 
@@ -445,7 +445,7 @@ export function UploadResourceWorkspace({ mode = "create", initialMaterial }: Up
               <Input
                 placeholder="Year"
                 type="number"
-                min={2000}
+                min={1900}
                 max={2100}
                 value={year}
                 onChange={(event) => setYear(event.target.value)}

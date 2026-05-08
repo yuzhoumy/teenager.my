@@ -1725,7 +1725,7 @@ export function PdfForkEditor({
             </div>
           </div>
 
-          <div className="mx-[5px] mt-4 space-y-3 rounded-[20px] border border-border bg-surface p-3 sm:mx-0 sm:mt-6 sm:space-y-4 sm:rounded-[24px] sm:p-4 mx-2">
+          <div className="mx-[5px] mt-4 space-y-3 rounded-[20px] border border-border bg-surface p-3 sm:mx-0 sm:mt-6 sm:space-y-4 sm:rounded-[24px] sm:p-4">
             <div>
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Title</p>

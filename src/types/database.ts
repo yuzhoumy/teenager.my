@@ -41,6 +41,21 @@ export type Database = {
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
       };
+      profile_follows: {
+        Row: {
+          id: string;
+          follower_id: string;
+          followed_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          follower_id: string;
+          followed_id: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["profile_follows"]["Insert"]>;
+      };
       materials: {
         Row: {
           id: string;

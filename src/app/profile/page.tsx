@@ -38,6 +38,8 @@ export default function ProfilePage() {
   const [loadingSavedResources, setLoadingSavedResources] = useState(false);
   const [uploadedResources, setUploadedResources] = useState<StudyMaterial[]>([]);
   const [loadingUploadedResources, setLoadingUploadedResources] = useState(false);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [followerCount, setFollowerCount] = useState(0);
   const [deletingResourceId, setDeletingResourceId] = useState<string | null>(null);
 
   const avatarPreview = useMemo(() => avatarUrl.trim(), [avatarUrl]);
@@ -50,6 +52,7 @@ export default function ProfilePage() {
 
       if (!isSupabaseConfigured) {
       setError("Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local, then restart dev server.");
+        setLoadingProfile(false);
         return;
       }
 
@@ -72,6 +75,24 @@ export default function ProfilePage() {
       setUserId(user.id);
       setLoadingSavedResources(true);
       setLoadingUploadedResources(true);
+
+      const [{ count: nextFollowingCount, error: followingError }, { count: nextFollowerCount, error: followerError }] = await Promise.all([
+        supabase
+          .from("profile_follows")
+          .select("id", { count: "exact", head: true })
+          .eq("follower_id", user.id),
+        supabase
+          .from("profile_follows")
+          .select("id", { count: "exact", head: true })
+          .eq("followed_id", user.id),
+      ]);
+
+      if (followingError || followerError) {
+        setError(followingError?.message ?? followerError?.message ?? "Unable to load follow counts.");
+      } else {
+        setFollowingCount(nextFollowingCount ?? 0);
+        setFollowerCount(nextFollowerCount ?? 0);
+      }
 
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
@@ -363,6 +384,19 @@ export default function ProfilePage() {
           </form>
         ) : null}
       </Card>
+
+      {isLoggedIn ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Card className="rounded-2xl">
+            <span className="block text-2xl font-semibold text-foreground">{followingCount}</span>
+            <p className="text-sm text-foreground/70">Following</p>
+          </Card>
+          <Card className="rounded-2xl">
+            <span className="block text-2xl font-semibold text-foreground">{followerCount}</span>
+            <p className="text-sm text-foreground/70">Followed by</p>
+          </Card>
+        </div>
+      ) : null}
 
       <Card>
         <div className="mb-3 flex items-center justify-between">

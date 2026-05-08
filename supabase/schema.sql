@@ -20,7 +20,7 @@ alter table public.profiles add column if not exists created_at timestamptz not 
 alter table public.profiles drop constraint if exists profiles_id_fkey;
 update public.profiles set id = gen_random_uuid() where id is null;
 update public.profiles set display_name = 'Student' where display_name is null or trim(display_name) = '';
-update public.profiles set form = 'f1' where form is null;
+update public.profiles set form = '1' where form is null;
 alter table public.profiles
   alter column id set default gen_random_uuid(),
   alter column id set not null,
@@ -81,6 +81,32 @@ create policy "Allow users to update own profile" on public.profiles
   for update
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+create table if not exists public.profile_follows (
+  id uuid primary key default gen_random_uuid(),
+  follower_id uuid not null references auth.users(id) on delete cascade,
+  followed_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (follower_id, followed_id),
+  constraint profile_follows_no_self_follow check (follower_id <> followed_id)
+);
+
+alter table public.profile_follows enable row level security;
+
+drop policy if exists "Allow public selects on profile follows" on public.profile_follows;
+create policy "Allow public selects on profile follows" on public.profile_follows
+  for select
+  using (true);
+
+drop policy if exists "Allow users to follow as themselves" on public.profile_follows;
+create policy "Allow users to follow as themselves" on public.profile_follows
+  for insert
+  with check (auth.uid() = follower_id and follower_id <> followed_id);
+
+drop policy if exists "Allow users to unfollow as themselves" on public.profile_follows;
+create policy "Allow users to unfollow as themselves" on public.profile_follows
+  for delete
+  using (auth.uid() = follower_id);
 
 create or replace function public.create_profile_for_auth_user()
 returns trigger
@@ -159,7 +185,7 @@ create table if not exists public.materials (
   grade text not null check (grade in ('f1', 'f2', 'f3', 'f4', 'f5')),
   subject text not null,
   category_tags text[] not null default '{}',
-  year integer not null check (year between 2000 and 2100),
+  year integer not null check (year between 1900 and 2100),
   origin text not null,
   author_name text not null,
   has_solution boolean not null default false,
@@ -437,7 +463,7 @@ create table if not exists public.pending_materials (
   grade text not null check (grade in ('f1', 'f2', 'f3', 'f4', 'f5')),
   subject text not null,
   category_tags text[] not null default '{}',
-  year integer not null check (year between 2000 and 2100),
+  year integer not null check (year between 1900 and 2100),
   origin text not null,
   author_name text not null,
   has_solution boolean not null default false,
@@ -470,6 +496,8 @@ create index if not exists idx_materials_year on public.materials (year desc);
 create index if not exists idx_materials_created_at on public.materials (created_at desc);
 create index if not exists idx_materials_slug on public.materials (slug);
 create index if not exists idx_materials_category_tags on public.materials using gin (category_tags);
+create index if not exists idx_profile_follows_follower_id on public.profile_follows (follower_id);
+create index if not exists idx_profile_follows_followed_id on public.profile_follows (followed_id);
 create index if not exists idx_material_stars_material_id on public.material_stars (material_id);
 create index if not exists idx_material_stars_user_id on public.material_stars (user_id);
 create index if not exists idx_user_forks_material_id on public.user_forks (material_id);

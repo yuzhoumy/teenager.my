@@ -4,12 +4,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, BookOpen, LoaderCircle, Star, UserRound } from "lucide-react";
+import { ArrowLeft, BookOpen, LoaderCircle, Star, UserCheck, UserPlus, UserRound } from "lucide-react";
 import { getEducationLevelLabel } from "@/lib/education-levels";
 import { getMaterialHref } from "@/lib/materials";
 import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 import type { ForkStar, StudyMaterial, UserFork } from "@/types/resource";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
@@ -23,6 +24,11 @@ export function PublicProfileClient() {
   const [resources, setResources] = useState<StudyMaterial[]>([]);
   const [forks, setForks] = useState<UserFork[]>([]);
   const [forkStarCount, setForkStarCount] = useState(0);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [updatingFollow, setUpdatingFollow] = useState(false);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [followerCount, setFollowerCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -37,6 +43,7 @@ export function PublicProfileClient() {
 
       try {
         const currentUser = await getSupabaseUser();
+        setCurrentUserId(currentUser?.id ?? null);
 
         if (currentUser?.id === userId) {
           router.replace("/profile");
@@ -64,7 +71,13 @@ export function PublicProfileClient() {
           setProfile(profileData as Pick<ProfileRow, "display_name" | "form" | "avatar_url">);
         }
 
-        const [{ data: materialsData, error: materialsError }, { data: forksData, error: forksError }] = await Promise.all([
+        const [
+          { data: materialsData, error: materialsError },
+          { data: forksData, error: forksError },
+          followingResult,
+          followerResult,
+          followStateResult,
+        ] = await Promise.all([
           supabase
             .from("materials")
             .select("*")
@@ -76,9 +89,25 @@ export function PublicProfileClient() {
             .eq("user_id", userId)
             .order("created_at", { ascending: false })
             .limit(6),
+          supabase
+            .from("profile_follows")
+            .select("id", { count: "exact", head: true })
+            .eq("follower_id", userId),
+          supabase
+            .from("profile_follows")
+            .select("id", { count: "exact", head: true })
+            .eq("followed_id", userId),
+          currentUser
+            ? supabase
+                .from("profile_follows")
+                .select("id")
+                .eq("follower_id", currentUser.id)
+                .eq("followed_id", userId)
+                .maybeSingle()
+            : Promise.resolve({ data: null, error: null }),
         ]);
 
-        const activityErrors = [materialsError, forksError].filter(Boolean);
+        const activityErrors = [materialsError, forksError, followingResult.error, followerResult.error].filter(Boolean);
         const typedMaterials = materialsError ? [] : ((materialsData ?? []) as StudyMaterial[]);
         const typedForks = forksError ? [] : ((forksData ?? []) as UserFork[]);
         let stars: ForkStar[] = [];
@@ -100,6 +129,9 @@ export function PublicProfileClient() {
           setResources(typedMaterials);
           setForks(typedForks);
           setForkStarCount(stars.length);
+          setFollowingCount(followingResult.count ?? 0);
+          setFollowerCount(followerResult.count ?? 0);
+          setIsFollowing(Boolean(followStateResult.data) && !followStateResult.error);
           setError(activityErrors.length > 0 ? "Some profile activity could not be loaded." : "");
         }
       } catch (loadError) {
@@ -125,6 +157,52 @@ export function PublicProfileClient() {
       cancelled = true;
     };
   }, [router, userId]);
+
+  async function toggleFollow() {
+    if (!userId || !currentUserId || updatingFollow) {
+      return;
+    }
+
+    setError("");
+    setUpdatingFollow(true);
+
+    if (isFollowing) {
+      const { error: deleteError } = await supabase
+        .from("profile_follows")
+        .delete()
+        .eq("follower_id", currentUserId)
+        .eq("followed_id", userId);
+
+      setUpdatingFollow(false);
+
+      if (deleteError) {
+        setError(deleteError.message);
+        return;
+      }
+
+      setIsFollowing(false);
+      setFollowerCount((current) => Math.max(0, current - 1));
+      return;
+    }
+
+    const payload: Database["public"]["Tables"]["profile_follows"]["Insert"] = {
+      follower_id: currentUserId,
+      followed_id: userId,
+    };
+    const { error: insertError } = await supabase
+      .from("profile_follows")
+      .upsert(payload as never, { onConflict: "follower_id,followed_id", ignoreDuplicates: true });
+
+    setUpdatingFollow(false);
+
+    if (insertError) {
+      setError(insertError.message);
+      return;
+    }
+
+    setIsFollowing(true);
+    setFollowerCount((current) => current + 1);
+  }
 
   if (loading) {
     return (
@@ -178,6 +256,19 @@ export function PublicProfileClient() {
               <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Public profile</p>
               <h1 className="mt-2 text-3xl text-foreground">{profile.display_name}</h1>
               <p className="mt-2 text-sm text-text-muted">{getEducationLevelLabel(profile.form)}</p>
+              {currentUserId ? (
+                <Button type="button" size="sm" className="mt-4" variant={isFollowing ? "secondary" : "default"} onClick={toggleFollow} disabled={updatingFollow}>
+                  {isFollowing ? <UserCheck className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+                  {updatingFollow ? "Updating..." : isFollowing ? "Following" : "Follow"}
+                </Button>
+              ) : (
+                <Button asChild size="sm" className="mt-4" variant="outline">
+                  <Link href="/login">
+                    <UserPlus className="h-4 w-4" />
+                    Log in to follow
+                  </Link>
+                </Button>
+              )}
             </div>
           </div>
 
@@ -193,6 +284,14 @@ export function PublicProfileClient() {
             <div className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-text-muted">
               <span className="block text-lg font-semibold text-foreground">{forkStarCount}</span>
               Fork stars
+            </div>
+            <div className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-text-muted">
+              <span className="block text-lg font-semibold text-foreground">{followingCount}</span>
+              Following
+            </div>
+            <div className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-text-muted">
+              <span className="block text-lg font-semibold text-foreground">{followerCount}</span>
+              Followed by
             </div>
           </div>
         </div>
