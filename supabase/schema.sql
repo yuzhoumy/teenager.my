@@ -4,7 +4,7 @@ create table if not exists public.profiles (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null unique references auth.users(id) on delete cascade,
   display_name text not null,
-  form integer not null check (form between 1 and 5),
+  form text not null check (form in ('y1', 'y2', 'y3', 'y4', 'y5', 'y6', 'f1', 'f2', 'f3', 'f4', 'f5', 'university', 'graduated')),
   avatar_url text,
   streak_count integer not null default 0,
   created_at timestamptz not null default now()
@@ -20,7 +20,7 @@ alter table public.profiles add column if not exists created_at timestamptz not 
 alter table public.profiles drop constraint if exists profiles_id_fkey;
 update public.profiles set id = gen_random_uuid() where id is null;
 update public.profiles set display_name = 'Student' where display_name is null or trim(display_name) = '';
-update public.profiles set form = '1' where form is null;
+update public.profiles set form = 'f1' where form is null;
 alter table public.profiles
   alter column id set default gen_random_uuid(),
   alter column id set not null,
@@ -30,14 +30,15 @@ alter table public.profiles
   alter column display_name set not null,
   drop constraint if exists profiles_form_check,
   alter column form drop default,
-  alter column form type integer using (
+  alter column form type text using (
     case
-      when coalesce(form::text, '') ~ '^[1-5]$' then form::integer
-      else 1
+      when coalesce(form::text, '') ~ '^[1-5]$' then 'f' || form::text
+      when coalesce(form::text, '') in ('y1', 'y2', 'y3', 'y4', 'y5', 'y6', 'f1', 'f2', 'f3', 'f4', 'f5', 'university', 'graduated') then form::text
+      else 'f1'
     end
   ),
   alter column form set not null,
-  add constraint profiles_form_check check (form between 1 and 5);
+  add constraint profiles_form_check check (form in ('y1', 'y2', 'y3', 'y4', 'y5', 'y6', 'f1', 'f2', 'f3', 'f4', 'f5', 'university', 'graduated'));
 
 do $$
 begin
@@ -94,8 +95,10 @@ begin
     coalesce(nullif(trim(new.raw_user_meta_data ->> 'display_name'), ''), split_part(new.email, '@', 1), 'Student'),
     case
       when coalesce(new.raw_user_meta_data ->> 'form', '') ~ '^[1-5]$'
-        then (new.raw_user_meta_data ->> 'form')::integer
-      else 1
+        then 'f' || (new.raw_user_meta_data ->> 'form')
+      when coalesce(new.raw_user_meta_data ->> 'form', '') in ('y1', 'y2', 'y3', 'y4', 'y5', 'y6', 'f1', 'f2', 'f3', 'f4', 'f5', 'university', 'graduated')
+        then new.raw_user_meta_data ->> 'form'
+      else 'f1'
     end,
     nullif(trim(new.raw_user_meta_data ->> 'avatar_url'), '')
   )
@@ -117,7 +120,9 @@ update public.profiles as profiles
 set display_name = coalesce(nullif(trim(users.raw_user_meta_data ->> 'display_name'), ''), profiles.display_name),
     form = case
       when coalesce(users.raw_user_meta_data ->> 'form', '') ~ '^[1-5]$'
-        then (users.raw_user_meta_data ->> 'form')::integer
+        then 'f' || (users.raw_user_meta_data ->> 'form')
+      when coalesce(users.raw_user_meta_data ->> 'form', '') in ('y1', 'y2', 'y3', 'y4', 'y5', 'y6', 'f1', 'f2', 'f3', 'f4', 'f5', 'university', 'graduated')
+        then users.raw_user_meta_data ->> 'form'
       else profiles.form
     end,
     avatar_url = coalesce(nullif(trim(users.raw_user_meta_data ->> 'avatar_url'), ''), profiles.avatar_url)
@@ -126,6 +131,7 @@ where profiles.user_id = users.id
   and (
     nullif(trim(users.raw_user_meta_data ->> 'display_name'), '') is not null
     or coalesce(users.raw_user_meta_data ->> 'form', '') ~ '^[1-5]$'
+    or coalesce(users.raw_user_meta_data ->> 'form', '') in ('y1', 'y2', 'y3', 'y4', 'y5', 'y6', 'f1', 'f2', 'f3', 'f4', 'f5', 'university', 'graduated')
     or nullif(trim(users.raw_user_meta_data ->> 'avatar_url'), '') is not null
   );
 
@@ -135,8 +141,10 @@ select
   coalesce(nullif(trim(users.raw_user_meta_data ->> 'display_name'), ''), split_part(users.email, '@', 1), 'Student'),
   case
     when coalesce(users.raw_user_meta_data ->> 'form', '') ~ '^[1-5]$'
-      then (users.raw_user_meta_data ->> 'form')::integer
-    else 1
+      then 'f' || (users.raw_user_meta_data ->> 'form')
+    when coalesce(users.raw_user_meta_data ->> 'form', '') in ('y1', 'y2', 'y3', 'y4', 'y5', 'y6', 'f1', 'f2', 'f3', 'f4', 'f5', 'university', 'graduated')
+      then users.raw_user_meta_data ->> 'form'
+    else 'f1'
   end,
   nullif(trim(users.raw_user_meta_data ->> 'avatar_url'), '')
 from auth.users

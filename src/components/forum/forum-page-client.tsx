@@ -410,10 +410,15 @@ export function ForumPageClient() {
   const [error, setError] = useState("");
   const [isComposing, setIsComposing] = useState(false);
   const [sortMode, setSortMode] = useState<ForumSort>("latest");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   const postIds = useMemo(() => posts.map((post) => post.id), [posts]);
   const sortedPosts = useMemo(() => {
-    const nextPosts = [...posts];
+    const filteredPosts =
+      sortMode === "tag" && selectedTags.length > 0
+        ? posts.filter((post) => selectedTags.includes(post.tag))
+        : posts;
+    const nextPosts = [...filteredPosts];
 
     if (sortMode === "love") {
       return nextPosts.sort((left, right) => (loveCounts[right.id] ?? 0) - (loveCounts[left.id] ?? 0));
@@ -424,7 +429,7 @@ export function ForumPageClient() {
     }
 
     return nextPosts.sort((left, right) => right.created_at.localeCompare(left.created_at));
-  }, [loveCounts, posts, sortMode]);
+  }, [loveCounts, posts, selectedTags, sortMode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -629,6 +634,14 @@ export function ForumPageClient() {
     }));
   }
 
+  function toggleTagFilter(tag: string) {
+    setSelectedTags((current) =>
+      current.includes(tag)
+        ? current.filter((entry) => entry !== tag)
+        : [...current, tag],
+    );
+  }
+
   return (
     <section className="space-y-6">
       <div className="rounded-[30px] border border-border bg-surface p-6 shadow-[0_4px_24px_var(--shadow)] sm:p-8">
@@ -650,7 +663,9 @@ export function ForumPageClient() {
       {isComposing ? <ForumPostEditor onCancel={() => setIsComposing(false)} onCreated={handlePostCreated} /> : null}
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-border bg-surface p-4 shadow-[0_4px_24px_var(--shadow)]">
-        <p className="text-sm text-text-muted">{posts.length} post{posts.length === 1 ? "" : "s"}</p>
+        <p className="text-sm text-text-muted">
+          {sortedPosts.length} of {posts.length} post{posts.length === 1 ? "" : "s"}
+        </p>
         <div className="flex items-center gap-2">
           <label htmlFor="forum-sort" className="text-sm font-medium text-text-muted">
             Sort
@@ -662,6 +677,32 @@ export function ForumPageClient() {
           </Select>
         </div>
       </div>
+
+      {sortMode === "tag" ? (
+        <div className="rounded-[24px] border border-border bg-surface p-4 shadow-[0_4px_24px_var(--shadow)]">
+          <div className="flex flex-wrap items-center gap-3">
+            {forumTags.map((tag) => (
+              <label
+                key={tag}
+                className="inline-flex items-center gap-2 rounded-2xl border border-border bg-background px-3 py-2 text-sm text-text-muted transition hover:border-foreground hover:text-foreground"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedTags.includes(tag)}
+                  onChange={() => toggleTagFilter(tag)}
+                  className="h-4 w-4 accent-[var(--brand)]"
+                />
+                {tag}
+              </label>
+            ))}
+            {selectedTags.length > 0 ? (
+              <Button type="button" size="sm" variant="ghost" onClick={() => setSelectedTags([])}>
+                Clear
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       {error ? (
         <div className="rounded-[28px] border border-[#e7c3b8] bg-[#fff4f0] p-5 text-sm text-[#b53333]">

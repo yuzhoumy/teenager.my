@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, BookOpen, LoaderCircle, Star, UserRound } from "lucide-react";
+import { getEducationLevelLabel } from "@/lib/education-levels";
 import { getMaterialHref } from "@/lib/materials";
 import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
@@ -176,7 +177,7 @@ export function PublicProfileClient() {
             <div>
               <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Public profile</p>
               <h1 className="mt-2 text-3xl text-foreground">{profile.display_name}</h1>
-              <p className="mt-2 text-sm text-text-muted">Form {profile.form}</p>
+              <p className="mt-2 text-sm text-text-muted">{getEducationLevelLabel(profile.form)}</p>
             </div>
           </div>
 

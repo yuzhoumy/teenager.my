@@ -9,6 +9,7 @@ export type Json =
 export type MaterialGrade = "f1" | "f2" | "f3" | "f4" | "f5";
 export type MaterialCoreType = "exercise" | "note";
 export type MaterialTag = "exercise" | "note" | "textbook" | "trial-paper" | "past-year-paper" | "exam-paper";
+export type ProfileForm = "y1" | "y2" | "y3" | "y4" | "y5" | "y6" | "f1" | "f2" | "f3" | "f4" | "f5" | "university" | "graduated";
 export type AnnotationRect = {
   x: number;
   y: number;
@@ -24,7 +25,7 @@ export type Database = {
           id: string;
           user_id: string;
           display_name: string;
-          form: number;
+          form: ProfileForm;
           avatar_url: string | null;
           streak_count: number;
           created_at: string;
@@ -33,7 +34,7 @@ export type Database = {
           id?: string;
           user_id: string;
           display_name: string;
-          form: number;
+          form: ProfileForm;
           avatar_url?: string | null;
           streak_count?: number;
           created_at?: string;

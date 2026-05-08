@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { educationLevels, normalizeEducationLevel } from "@/lib/education-levels";
 import { getMaterialHref } from "@/lib/materials";
 import type { Database } from "@/types/database";
 import type { StudyMaterial } from "@/types/resource";
@@ -89,7 +90,7 @@ export default function ProfilePage() {
       }
 
       setDisplayName(profile?.display_name ?? (user.user_metadata.display_name as string | undefined) ?? "");
-      setFormLevel(String(profile?.form ?? (user.user_metadata.form as number | undefined) ?? 1));
+      setFormLevel(normalizeEducationLevel(profile?.form ?? user.user_metadata.form));
       setAvatarUrl(
         profile?.avatar_url ?? (user.user_metadata.avatar_url as string | undefined) ?? "",
       );
@@ -170,7 +171,7 @@ export default function ProfilePage() {
     }
 
     setSaving(true);
-    const nextForm = Number(formLevel);
+    const nextForm = normalizeEducationLevel(formLevel);
     let nextAvatarUrl = avatarUrl.trim() || null;
 
     if (avatarFile) {
@@ -318,9 +319,9 @@ export default function ProfilePage() {
               required
             />
             <Select value={formLevel} onChange={(e) => setFormLevel(e.target.value)} required>
-              {[1, 2, 3, 4, 5].map((value) => (
-                <option key={value} value={value}>
-                  Form {value}
+              {educationLevels.map((level) => (
+                <option key={level.value} value={level.value}>
+                  {level.label}
                 </option>
               ))}
             </Select>

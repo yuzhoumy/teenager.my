@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { educationLevels } from "@/lib/education-levels";
 import { getMoeEmailError } from "@/lib/validators";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
@@ -43,7 +44,7 @@ export function RegisterForm() {
         emailRedirectTo: `${window.location.origin}/login?registered=success`,
         data: {
           display_name: displayName,
-          form: Number(formLevel),
+          form: formLevel,
         },
       },
     });
@@ -71,9 +72,9 @@ export function RegisterForm() {
           required
         />
         <Select value={formLevel} onChange={(e) => setFormLevel(e.target.value)} required>
-          {[1, 2, 3, 4, 5].map((value) => (
-            <option key={value} value={value}>
-              Form {value}
+          {educationLevels.map((level) => (
+            <option key={level.value} value={level.value}>
+              {level.label}
             </option>
           ))}
         </Select>

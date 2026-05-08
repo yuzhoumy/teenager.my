@@ -8,9 +8,6 @@ import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase"
 
 const futureModules = [
   "Study Room",
-  "Study Buddy", 
-  "Flashcards",
-  "Quiz",
   "Rewards/Streaks",
 ] as const;
 
