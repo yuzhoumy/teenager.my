@@ -1670,10 +1670,6 @@ export function PdfForkEditor({
   return (
     <div className="min-w-0 max-w-full overflow-hidden bg-surface p-0 sm:rounded-[32px] sm:border sm:border-border sm:p-6">
       <div className="mb-4 flex flex-col gap-3 px-[5px] sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-0">
-        <div className="hidden sm:block">
-          <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Fork workspace</p>
-          <h2 className="mt-2 text-2xl text-foreground">Live markdown fork editor</h2>
-        </div>
         {showCollections || (!shouldShowEditor && !showCollections) ? (
           <Button type="button" size="sm" variant="default" onClick={handleCreateFork} disabled={loadingFork || savingMarkdown}>
             Create new fork

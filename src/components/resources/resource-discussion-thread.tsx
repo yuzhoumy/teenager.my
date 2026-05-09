@@ -133,10 +133,6 @@ export function ResourceDiscussionThread({ materialId }: { materialId: string })
   return (
     <Card className="rounded-[32px]">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Discussion</p>
-          <h2 className="mt-2 text-3xl text-foreground">Thread</h2>
-        </div>
         <Badge className="bg-surface-muted text-text-muted">
           <MessageSquareText className="mr-1 h-3.5 w-3.5" />
           Shared
