@@ -2,12 +2,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, BookOpen, LoaderCircle, Star, UserCheck, UserPlus, UserRound } from "lucide-react";
 import { getEducationLevelLabel } from "@/lib/education-levels";
 import { getMaterialHref } from "@/lib/materials";
 import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { ContributionGraph } from "@/components/profile/contribution-graph";
+import type { ContributionActivity } from "@/lib/profile-contributions";
 import type { Database } from "@/types/database";
 import type { ForkStar, StudyMaterial, UserFork } from "@/types/resource";
 import { Button } from "@/components/ui/button";
@@ -31,6 +33,25 @@ export function PublicProfileClient() {
   const [followerCount, setFollowerCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const contributionActivity = useMemo<ContributionActivity[]>(
+    () => [
+      ...resources.map((resource) => ({
+        id: `upload-${resource.id}`,
+        type: "upload" as const,
+        title: resource.title,
+        href: getMaterialHref(resource),
+        createdAt: resource.created_at,
+      })),
+      ...forks.map((fork) => ({
+        id: `fork-${fork.id}`,
+        type: "fork" as const,
+        title: fork.pinned_title?.trim() || "Community fork",
+        href: `/forks?forkId=${fork.id}`,
+        createdAt: fork.created_at,
+      })),
+    ],
+    [forks, resources],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -157,6 +178,46 @@ export function PublicProfileClient() {
       cancelled = true;
     };
   }, [router, userId]);
+
+  useEffect(() => {
+    if (!userId || !isSupabaseConfigured) {
+      return;
+    }
+
+    const channel = supabase
+      .channel(`public-profile-contribution-${userId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "materials", filter: `uploaded_by=eq.${userId}` },
+        (payload) => {
+          const material = payload.new as StudyMaterial;
+          setResources((current) => {
+            if (current.some((item) => item.id === material.id)) {
+              return current;
+            }
+            return [material, ...current];
+          });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "user_forks", filter: `user_id=eq.${userId}` },
+        (payload) => {
+          const fork = payload.new as UserFork;
+          setForks((current) => {
+            if (current.some((item) => item.id === fork.id)) {
+              return current;
+            }
+            return [fork, ...current];
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [userId]);
 
   async function toggleFollow() {
     if (!userId || !currentUserId || updatingFollow) {
@@ -297,6 +358,11 @@ export function PublicProfileClient() {
         </div>
 
         {error ? <p className="mt-4 rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">{error}</p> : null}
+
+        <div className="mt-6 rounded-[24px] border border-border bg-background p-5">
+          <h2 className="mb-2 text-xl text-foreground">Contributions</h2>
+          <ContributionGraph activity={contributionActivity} />
+        </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
           <div className="rounded-[24px] border border-border bg-background p-5">

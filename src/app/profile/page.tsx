@@ -10,15 +10,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { ContributionGraph } from "@/components/profile/contribution-graph";
 import { educationLevels, normalizeEducationLevel } from "@/lib/education-levels";
 import { getMaterialHref } from "@/lib/materials";
+import type { ContributionActivity } from "@/lib/profile-contributions";
 import type { Database } from "@/types/database";
-import type { StudyMaterial } from "@/types/resource";
+import type { StudyMaterial, UserFork } from "@/types/resource";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 type MaterialBookmarkRow = Database["public"]["Tables"]["material_bookmarks"]["Row"];
 type MaterialRow = Database["public"]["Tables"]["materials"]["Row"];
+type UserForkRow = Database["public"]["Tables"]["user_forks"]["Row"];
 type ProfileInsert = Database["public"]["Tables"]["profiles"]["Insert"];
 
 export default function ProfilePage() {
@@ -37,12 +40,32 @@ export default function ProfilePage() {
   const [savedResources, setSavedResources] = useState<StudyMaterial[]>([]);
   const [loadingSavedResources, setLoadingSavedResources] = useState(false);
   const [uploadedResources, setUploadedResources] = useState<StudyMaterial[]>([]);
+  const [forkedResources, setForkedResources] = useState<UserFork[]>([]);
   const [loadingUploadedResources, setLoadingUploadedResources] = useState(false);
   const [followingCount, setFollowingCount] = useState(0);
   const [followerCount, setFollowerCount] = useState(0);
   const [deletingResourceId, setDeletingResourceId] = useState<string | null>(null);
 
   const avatarPreview = useMemo(() => avatarUrl.trim(), [avatarUrl]);
+  const contributionActivity = useMemo<ContributionActivity[]>(
+    () => [
+      ...uploadedResources.map((resource) => ({
+        id: `upload-${resource.id}`,
+        type: "upload" as const,
+        title: resource.title,
+        href: getMaterialHref(resource),
+        createdAt: resource.created_at,
+      })),
+      ...forkedResources.map((fork) => ({
+        id: `fork-${fork.id}`,
+        type: "fork" as const,
+        title: fork.pinned_title?.trim() || "Community fork",
+        href: `/forks?forkId=${fork.id}`,
+        createdAt: fork.created_at,
+      })),
+    ],
+    [forkedResources, uploadedResources],
+  );
 
   useEffect(() => {
     async function loadProfile() {
@@ -170,12 +193,67 @@ export default function ProfilePage() {
       }
 
       setUploadedResources((uploadedData ?? []) as StudyMaterial[]);
+
+      const { data: forkedData, error: forkedError } = await supabase
+        .from("user_forks")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (forkedError) {
+        setError(forkedError.message);
+        setLoadingUploadedResources(false);
+        setLoadingProfile(false);
+        return;
+      }
+
+      setForkedResources((forkedData ?? []) as UserFork[]);
       setLoadingUploadedResources(false);
       setLoadingProfile(false);
     }
 
     void loadProfile();
   }, [router]);
+
+  useEffect(() => {
+    if (!userId || !isSupabaseConfigured) {
+      return;
+    }
+
+    const channel = supabase
+      .channel(`profile-contribution-${userId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "materials", filter: `uploaded_by=eq.${userId}` },
+        (payload) => {
+          const material = payload.new as MaterialRow;
+          setUploadedResources((current) => {
+            if (current.some((item) => item.id === material.id)) {
+              return current;
+            }
+            return [material as StudyMaterial, ...current];
+          });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "user_forks", filter: `user_id=eq.${userId}` },
+        (payload) => {
+          const fork = payload.new as UserForkRow;
+          setForkedResources((current) => {
+            if (current.some((item) => item.id === fork.id)) {
+              return current;
+            }
+            return [fork as UserFork, ...current];
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [userId]);
 
   async function onSaveProfile(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -398,6 +476,13 @@ export default function ProfilePage() {
         </div>
       ) : null}
 
+      {isLoggedIn ? (
+        <Card>
+          <h2 className="mb-2 font-semibold">Contributions</h2>
+          <ContributionGraph activity={contributionActivity} />
+        </Card>
+      ) : null}
+
       <Card>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-semibold">Rewards / Streaks</h2>
@@ -426,7 +511,7 @@ export default function ProfilePage() {
                     {resource.subject} • {resource.year} • {resource.origin}
                   </p>
                 </div>
-                <Button asChild size="sm">
+                <Button asChild size="sm" variant="outline">
                   <Link href={getMaterialHref(resource)}>
                     <Eye className="h-4 w-4" />
                     View
