@@ -1,8 +1,7 @@
 "use client";
 
+import "@/lib/pdfjs-worker";
 import { pdfjs } from "react-pdf";
-
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@5.4.296/build/pdf.worker.min.mjs`;
 
 const legacyAnnotationLayerWidth = 760;
 const exportResolutionMultiplier = 2.5;

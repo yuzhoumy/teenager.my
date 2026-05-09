@@ -1,9 +1,10 @@
 "use client";
 
+import "@/lib/pdfjs-worker";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type TouchEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Document, Page, pdfjs } from "react-pdf";
+import { Document, Page } from "react-pdf";
 import "react-pdf/dist/Page/TextLayer.css";
 import { Eraser, Highlighter, LoaderCircle, MousePointer2, PenTool, Star, TextCursorInput, Upload, X, ZoomIn, ZoomOut } from "lucide-react";
 import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
@@ -13,8 +14,6 @@ import type { ForkCardData, ForkStar, UserFork } from "@/types/resource";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { MarkdownRenderer } from "@/components/resources/markdown-renderer";
-
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@5.4.296/build/pdf.worker.min.mjs`;
 
 type SavedLayerValue =
   | unknown[]

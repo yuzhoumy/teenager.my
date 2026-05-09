@@ -1,14 +1,13 @@
 "use client";
 
+import "@/lib/pdfjs-worker";
 import { useEffect, useRef, useState } from "react";
-import { Document, Page, pdfjs } from "react-pdf";
+import { Document, Page } from "react-pdf";
 import "react-pdf/dist/Page/TextLayer.css";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, LoaderCircle, ZoomIn, ZoomOut } from "lucide-react";
 import { downloadAnnotatedPdf } from "@/lib/export-annotated-pdf";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@5.4.296/build/pdf.worker.min.mjs`;
 
 type SavedLayerValue =
   | unknown[]

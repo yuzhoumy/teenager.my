@@ -12,8 +12,29 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
+import type { ProfileNameRow } from "@/lib/profile-names";
 import type { Database } from "@/types/database";
 import type { ForumComment, ForumPost } from "@/types/forum";
+
+/** Use current profiles.display_name instead of stale forum_posts / forum_comments.author_name. */
+function applyProfileAuthorNames<T extends { user_id: string | null; author_name: string }>(
+  rows: T[],
+  profiles: ProfileNameRow[] | null | undefined,
+): T[] {
+  const map = new Map(
+    (profiles ?? [])
+      .map((profile) => {
+        const name = profile.display_name?.trim();
+        return name ? ([profile.user_id, name] as const) : null;
+      })
+      .filter((entry): entry is readonly [string, string] => entry !== null),
+  );
+  return rows.map((row) => {
+    if (!row.user_id) return row;
+    const name = map.get(row.user_id);
+    return name ? { ...row, author_name: name } : row;
+  });
+}
 
 type EditorMode = "edit" | "raw";
 type ForumSort = "latest" | "love" | "tag";
@@ -765,8 +786,22 @@ export function ForumPageClient() {
           throw postsError;
         }
 
+        const rawPosts = (data ?? []) as ForumPost[];
+        const authorIds = Array.from(new Set(rawPosts.map((post) => post.user_id).filter(Boolean))) as string[];
+        let hydratedPosts = rawPosts;
+        if (authorIds.length > 0) {
+          const { data: profileRows, error: profilesError } = await supabase
+            .from("profiles")
+            .select("user_id, display_name")
+            .in("user_id", authorIds);
+          if (profilesError) {
+            throw profilesError;
+          }
+          hydratedPosts = applyProfileAuthorNames(rawPosts, profileRows as ProfileNameRow[]);
+        }
+
         if (!cancelled) {
-          setPosts((data ?? []) as ForumPost[]);
+          setPosts(hydratedPosts);
         }
       } catch (loadError) {
         if (!cancelled) {
@@ -828,7 +863,22 @@ export function ForumPageClient() {
         return;
       }
 
-      const nextComments = ((data ?? []) as ForumComment[]).reduce<CommentsByPost>((grouped, comment) => {
+      const rawComments = (data ?? []) as ForumComment[];
+      const commentAuthorIds = Array.from(new Set(rawComments.map((comment) => comment.user_id).filter(Boolean))) as string[];
+      let hydratedComments = rawComments;
+      if (commentAuthorIds.length > 0) {
+        const { data: profileRows, error: profilesError } = await supabase
+          .from("profiles")
+          .select("user_id, display_name")
+          .in("user_id", commentAuthorIds);
+        if (profilesError) {
+          setError(profilesError.message);
+          return;
+        }
+        hydratedComments = applyProfileAuthorNames(rawComments, profileRows as ProfileNameRow[]);
+      }
+
+      const nextComments = hydratedComments.reduce<CommentsByPost>((grouped, comment) => {
         grouped[comment.post_id] = [...(grouped[comment.post_id] ?? []), comment];
         return grouped;
       }, {});
@@ -904,17 +954,35 @@ export function ForumPageClient() {
   }, [loading, posts.length]);
 
   function handlePostCreated(post: ForumPost) {
-    setPosts((current) => [post, ...current]);
-    setCommentsByPost((current) => ({ ...current, [post.id]: [] }));
-    setLoveCounts((current) => ({ ...current, [post.id]: 0 }));
-    setIsComposing(false);
+    void (async () => {
+      let nextPost = post;
+      if (post.user_id) {
+        const { data: profileRows } = await supabase.from("profiles").select("user_id, display_name").eq("user_id", post.user_id).maybeSingle();
+        nextPost = applyProfileAuthorNames([post], profileRows ? [profileRows as ProfileNameRow] : [])[0] ?? post;
+      }
+      setPosts((current) => [nextPost, ...current]);
+      setCommentsByPost((current) => ({ ...current, [nextPost.id]: [] }));
+      setLoveCounts((current) => ({ ...current, [nextPost.id]: 0 }));
+      setIsComposing(false);
+    })();
   }
 
   function handleCommentCreated(comment: ForumComment) {
-    setCommentsByPost((current) => ({
-      ...current,
-      [comment.post_id]: [...(current[comment.post_id] ?? []), comment],
-    }));
+    void (async () => {
+      let nextComment = comment;
+      if (comment.user_id) {
+        const { data: profileRows } = await supabase
+          .from("profiles")
+          .select("user_id, display_name")
+          .eq("user_id", comment.user_id)
+          .maybeSingle();
+        nextComment = applyProfileAuthorNames([comment], profileRows ? [profileRows as ProfileNameRow] : [])[0] ?? comment;
+      }
+      setCommentsByPost((current) => ({
+        ...current,
+        [nextComment.post_id]: [...(current[nextComment.post_id] ?? []), nextComment],
+      }));
+    })();
   }
 
   function handlePostUpdated(postId: string, payload: Pick<ForumPost, "title" | "tag" | "markdown">) {
