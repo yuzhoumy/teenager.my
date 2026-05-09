@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Bell, ChevronDown, ChevronUp } from "lucide-react";
 import type { Database, NotificationType } from "@/types/database";
 import { createProfileNameMap, type ProfileNameRow } from "@/lib/profile-names";
-import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { getSupabaseUser, isSupabaseConfigured, supabase, supabaseUntyped } from "@/lib/supabase";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -185,7 +185,7 @@ export function NotificationsPageClient() {
         }
 
         const readStamp = new Date().toISOString();
-        await supabase.from("notifications").update({ read_at: readStamp }).is("read_at", null);
+        await supabaseUntyped.from("notifications").update({ read_at: readStamp }).is("read_at", null);
 
         if (!cancelled) {
           setRows(nextRows.map((row) => (row.read_at ? row : { ...row, read_at: readStamp })));
@@ -228,9 +228,6 @@ export function NotificationsPageClient() {
               Follows, forks, forum replies, resource discussions, and announcements from the team.
             </p>
           </div>
-          <Button asChild variant="outline" size="sm">
-            <Link href="/forum">Open forum</Link>
-          </Button>
         </div>
       </div>
 

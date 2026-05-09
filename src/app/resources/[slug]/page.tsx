@@ -32,10 +32,6 @@ export async function generateMetadata(props: ResourcePageProps): Promise<Metada
 
 export default async function ResourceDetailPage(props: ResourcePageProps) {
   const { slug } = await props.params;
-  const searchParams = await props.searchParams;
-  const tabRaw = searchParams.tab;
-  const initialTab =
-    tabRaw === "discussion" || tabRaw === "fork" || tabRaw === "resource" ? tabRaw : undefined;
 
   const material = await getMaterialBySlug(slug);
 
@@ -45,7 +41,7 @@ export default async function ResourceDetailPage(props: ResourcePageProps) {
 
   return (
     <Suspense fallback={<p className="text-sm text-text-muted">Loading resource…</p>}>
-      <ResourceDetailClientShell material={material} initialTab={initialTab} />
+      <ResourceDetailClientShell material={material} />
     </Suspense>
   );
 }

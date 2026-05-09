@@ -12,6 +12,11 @@ export const supabase = createClient<Database>(
   supabaseAnonKey ?? "placeholder-anon-key"
 );
 
+export const supabaseUntyped = createClient(
+  supabaseUrl ?? "https://placeholder.supabase.co",
+  supabaseAnonKey ?? "placeholder-anon-key"
+);
+
 let userPromise: Promise<User | null> | null = null;
 
 export async function getSupabaseUser() {
