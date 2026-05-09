@@ -31,10 +31,10 @@ export function MobileBottomNav() {
   const navItems = [
     { href: "/", label: "Home", icon: Home, active: currentPath === "/" },
     {
-      href: "/search",
+      href: "/resources",
       label: "Resources",
       icon: BookOpen,
-      active: currentPath === "/search" || (currentPath.startsWith("/resources") && currentPath !== "/resources/upload"),
+      active: currentPath === "/search" || currentPath === "/resources" || (currentPath.startsWith("/resources") && currentPath !== "/resources/upload"),
     },
     {
       href: isLoggedIn ? "/leaderboard" : "/login",
@@ -59,7 +59,7 @@ export function MobileBottomNav() {
   ];
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur xl:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur lg:hidden">
       <div className="mx-auto max-w-md rounded-[22px] border border-border bg-surface px-2 py-2 shadow-[0_12px_40px_var(--shadow)]">
         <div className="grid grid-cols-5 gap-2">
           {navItems.map((item) => {

@@ -113,7 +113,7 @@ export function Navbar() {
           <span className="flex flex-col">
             <span className="font-serif text-xl leading-none">teenager.my</span>
             <span className="text-[0.7rem] uppercase tracking-[0.18em] text-text-soft">
-              Malaysian study commons
+              SPM Study Resources
             </span>
           </span>
         </Link>
@@ -122,7 +122,7 @@ export function Navbar() {
           <Link href="/" className="text-sm text-text-muted hover:text-foreground">
             Home
           </Link>
-          <Link href="/search" className="text-sm text-text-muted hover:text-foreground">
+          <Link href="/resources" className="text-sm text-text-muted hover:text-foreground">
             Resources
           </Link>
           <Link href="/forum" className="inline-flex items-center gap-2 text-sm text-text-muted hover:text-foreground">
