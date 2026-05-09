@@ -6,7 +6,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
 
-const futureModules = ["Streaks"] as const;
+const futureModules = [] as const;
 
 export function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
