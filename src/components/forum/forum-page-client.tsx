@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import dynamic from "next/dynamic";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import Link from "next/link";
-import { Heart, MessageSquare, Plus, Reply, Send, X } from "lucide-react";
+import { FileUp, Heart, ImageIcon, MessageSquare, Plus, Reply, Send, Upload, X } from "lucide-react";
 import { MarkdownRenderer } from "@/components/resources/markdown-renderer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,9 +19,41 @@ type EditorMode = "edit" | "raw";
 type ForumSort = "latest" | "love" | "tag";
 type CommentsByPost = Record<string, ForumComment[]>;
 type LoveCounts = Record<string, number>;
+const bucketName = process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET ?? "resource-attachments";
 
 const starterMarkdown = "# What are you working through?\n\nShare your question, notes, idea, or study tip here.\n\n- Add context\n- Mention what you have tried\n- Ask for the kind of feedback you want";
 const forumTags = ["General", "Homework Help", "Exam Prep", "Notes", "Study Tips", "Subject Question"] as const;
+const EmbeddedPdfViewer = dynamic(
+  () => import("@/components/resources/embedded-pdf-viewer").then((module) => module.EmbeddedPdfViewer),
+  { ssr: false },
+);
+
+function isPdfLink(url: string) {
+  return /\.pdf($|[?#])/i.test(url);
+}
+
+function isImageLink(url: string) {
+  return /\.(png|jpe?g|gif|webp|svg|avif)($|[?#])/i.test(url);
+}
+
+function markdownLink(label: string, href: string) {
+  return `[${label}](${href})`;
+}
+
+async function uploadForumAttachment(file: File, userId: string) {
+  const safeFileName = file.name.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9_.-]/g, "");
+  const filePath = `forum/${userId}/${Date.now()}-${safeFileName}`;
+  const { error: uploadError } = await supabase.storage
+    .from(bucketName)
+    .upload(filePath, file, { cacheControl: "3600", upsert: false });
+
+  if (uploadError) {
+    throw uploadError;
+  }
+
+  const { data } = supabase.storage.from(bucketName).getPublicUrl(filePath);
+  return data.publicUrl;
+}
 
 function getAuthorName(user: Awaited<ReturnType<typeof getSupabaseUser>>) {
   if (!user) return "Student";
@@ -58,10 +91,12 @@ function ForumPostEditor({
   onCancel: () => void;
   onCreated: (post: ForumPost) => void;
 }) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [title, setTitle] = useState("");
   const [tag, setTag] = useState<(typeof forumTags)[number]>("General");
   const [markdown, setMarkdown] = useState(starterMarkdown);
   const [editorMode, setEditorMode] = useState<EditorMode>("edit");
+  const [uploadingFile, setUploadingFile] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -116,9 +151,63 @@ function ForumPostEditor({
     }
   }
 
+  async function handleUploadFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    setError("");
+    setUploadingFile(true);
+
+    try {
+      if (!isSupabaseConfigured) {
+        throw new Error("Supabase is not configured.");
+      }
+
+      const user = await getSupabaseUser();
+      if (!user) {
+        throw new Error("Please log in to upload attachments.");
+      }
+
+      const uploadedUrl = await uploadForumAttachment(file, user.id);
+      const nextLink = markdownLink(file.name, uploadedUrl);
+      setMarkdown((current) => {
+        const trimmed = current.trim();
+        return trimmed ? `${trimmed}\n\n${nextLink}` : nextLink;
+      });
+      setEditorMode("edit");
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Unable to upload attachment.");
+    } finally {
+      setUploadingFile(false);
+    }
+  }
+
+  const renderPdfLink = (href: string, label: string, index: number) => (
+    <div key={`forum-editor-pdf-${href}-${index}`} className="mb-4 overflow-hidden rounded-[20px] border border-[#172033] bg-[#08131f] p-3">
+      <p className="mb-3 text-sm font-semibold text-foreground">{label}</p>
+      <EmbeddedPdfViewer file={href} />
+    </div>
+  );
+
+  const renderImageLink = (href: string, label: string, index: number) => (
+    <div key={`forum-editor-image-${href}-${index}`} className="mb-4 overflow-hidden rounded-[20px] border border-[#172033] bg-[#08131f] p-3">
+      <p className="mb-3 text-sm font-semibold text-foreground">{label}</p>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={href} alt={label} className="h-auto max-h-[640px] w-full rounded-xl bg-[#0b1421] object-contain" />
+    </div>
+  );
+
+  const pdfCount = Array.from(markdown.matchAll(/\[([^\]]+)\]\(([^)]+)\)/g)).filter((match) => isPdfLink(match[2] ?? "")).length;
+  const imageCount = Array.from(markdown.matchAll(/\[([^\]]+)\]\(([^)]+)\)/g)).filter((match) => isImageLink(match[2] ?? "")).length;
+
   return (
     <Card className="rounded-[28px] border-border-strong bg-surface-strong p-5">
       <form onSubmit={handleSubmit} className="space-y-5">
+        <input ref={fileInputRef} type="file" className="hidden" onChange={handleUploadFile} />
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-sm uppercase tracking-[0.18em] text-text-soft">New forum post</p>
@@ -157,6 +246,20 @@ function ForumPostEditor({
             </button>
           ))}
         </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="inline-flex items-center gap-2 rounded-full bg-surface px-3 py-1 text-xs font-semibold text-text-muted">
+            <FileUp className="h-3.5 w-3.5" />
+            {pdfCount} PDF link{pdfCount === 1 ? "" : "s"}
+          </span>
+          <span className="inline-flex items-center gap-2 rounded-full bg-surface px-3 py-1 text-xs font-semibold text-text-muted">
+            <ImageIcon className="h-3.5 w-3.5" />
+            {imageCount} image{imageCount === 1 ? "" : "s"}
+          </span>
+          <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploadingFile}>
+            <Upload className="h-4 w-4" />
+            {uploadingFile ? "Uploading..." : "Upload file"}
+          </Button>
+        </div>
 
         {editorMode === "edit" ? (
           <div className="grid gap-4 lg:grid-cols-2">
@@ -169,7 +272,7 @@ function ForumPostEditor({
             />
             <div className="min-h-[360px] rounded-[24px] border border-border bg-background p-5">
               <div className="prose-reset markdown-readme max-w-none">
-                <MarkdownRenderer markdown={markdown} />
+                <MarkdownRenderer markdown={markdown} renderPdfLink={renderPdfLink} renderImageLink={renderImageLink} />
               </div>
             </div>
           </div>
@@ -204,21 +307,35 @@ function ForumPostCard({
   comments,
   loveCount,
   isLoved,
+  currentUserId,
   onToggleLove,
   onCommentCreated,
+  onPostUpdated,
+  onPostDeleted,
 }: {
   post: ForumPost;
   comments: ForumComment[];
   loveCount: number;
   isLoved: boolean;
+  currentUserId: string | null;
   onToggleLove: (postId: string, isLoved: boolean) => Promise<void>;
   onCommentCreated: (comment: ForumComment) => void;
+  onPostUpdated: (postId: string, payload: Pick<ForumPost, "title" | "tag" | "markdown">) => void;
+  onPostDeleted: (postId: string) => void;
 }) {
+  const [editingPost, setEditingPost] = useState(false);
+  const [editTitle, setEditTitle] = useState(post.title);
+  const [editTag, setEditTag] = useState(post.tag);
+  const [editMarkdown, setEditMarkdown] = useState(post.markdown);
+  const [updatingPost, setUpdatingPost] = useState(false);
+  const [deletingPost, setDeletingPost] = useState(false);
   const [commentBody, setCommentBody] = useState("");
   const [replyTarget, setReplyTarget] = useState<ForumComment | null>(null);
   const [submittingComment, setSubmittingComment] = useState(false);
   const [updatingLove, setUpdatingLove] = useState(false);
   const [commentError, setCommentError] = useState("");
+  const [postActionError, setPostActionError] = useState("");
+  const canManagePost = Boolean(currentUserId && post.user_id === currentUserId);
   const rootComments = comments.filter((comment) => !comment.parent_comment_id);
   const repliesByParent = comments
     .filter((comment) => comment.parent_comment_id)
@@ -296,6 +413,120 @@ function ForumPostCard({
     });
   }
 
+  async function handlePostUpdate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPostActionError("");
+
+    if (!canManagePost) {
+      setPostActionError("You can only edit your own posts.");
+      return;
+    }
+
+    const trimmedTitle = editTitle.trim();
+    const trimmedTag = editTag.trim();
+    const trimmedMarkdown = editMarkdown.trim();
+
+    if (!trimmedTitle || !trimmedTag || !trimmedMarkdown) {
+      setPostActionError("Please add a title, tag, and post content.");
+      return;
+    }
+
+    if (!isSupabaseConfigured) {
+      setPostActionError("Supabase is not configured.");
+      return;
+    }
+
+    setUpdatingPost(true);
+    try {
+      const user = await getSupabaseUser();
+      if (!user) {
+        throw new Error("Please log in to edit your post.");
+      }
+
+      const { error } = await supabase
+        .from("forum_posts")
+        .update({
+          title: trimmedTitle,
+          tag: trimmedTag,
+          markdown: trimmedMarkdown,
+        } as never)
+        .eq("id", post.id)
+        .eq("user_id", user.id);
+
+      if (error) {
+        throw error;
+      }
+
+      onPostUpdated(post.id, {
+        title: trimmedTitle,
+        tag: trimmedTag,
+        markdown: trimmedMarkdown,
+      });
+      setEditingPost(false);
+    } catch (updateError) {
+      setPostActionError(updateError instanceof Error ? updateError.message : "Unable to update this post.");
+    } finally {
+      setUpdatingPost(false);
+    }
+  }
+
+  async function handleDeletePost() {
+    setPostActionError("");
+
+    if (!canManagePost) {
+      setPostActionError("You can only delete your own posts.");
+      return;
+    }
+
+    if (!window.confirm("Delete this post? This cannot be undone.")) {
+      return;
+    }
+
+    if (!isSupabaseConfigured) {
+      setPostActionError("Supabase is not configured.");
+      return;
+    }
+
+    setDeletingPost(true);
+    try {
+      const user = await getSupabaseUser();
+      if (!user) {
+        throw new Error("Please log in to delete your post.");
+      }
+
+      const { error: deleteCommentsError } = await supabase
+        .from("forum_comments")
+        .delete()
+        .eq("post_id", post.id);
+      if (deleteCommentsError) {
+        throw deleteCommentsError;
+      }
+
+      const { error: deleteLovesError } = await supabase
+        .from("forum_post_loves")
+        .delete()
+        .eq("post_id", post.id);
+      if (deleteLovesError) {
+        throw deleteLovesError;
+      }
+
+      const { error: deletePostError } = await supabase
+        .from("forum_posts")
+        .delete()
+        .eq("id", post.id)
+        .eq("user_id", user.id);
+      if (deletePostError) {
+        throw deletePostError;
+      }
+
+      onPostDeleted(post.id);
+    } catch (deleteError) {
+      setPostActionError(deleteError instanceof Error ? deleteError.message : "Unable to delete this post.");
+    } finally {
+      setDeletingPost(false);
+    }
+  }
+
   function renderComment(comment: ForumComment, isReply = false) {
     const replies = repliesByParent[comment.id] ?? [];
 
@@ -320,6 +551,21 @@ function ForumPostCard({
       </div>
     );
   }
+
+  const renderPdfLink = (href: string, label: string, index: number) => (
+    <div key={`forum-post-pdf-${post.id}-${href}-${index}`} className="mb-4 overflow-hidden rounded-[20px] border border-[#172033] bg-[#08131f] p-3">
+      <p className="mb-3 text-sm font-semibold text-foreground">{label}</p>
+      <EmbeddedPdfViewer file={href} />
+    </div>
+  );
+
+  const renderImageLink = (href: string, label: string, index: number) => (
+    <div key={`forum-post-image-${post.id}-${href}-${index}`} className="mb-4 overflow-hidden rounded-[20px] border border-[#172033] bg-[#08131f] p-3">
+      <p className="mb-3 text-sm font-semibold text-foreground">{label}</p>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={href} alt={label} className="h-auto max-h-[720px] w-full rounded-xl bg-[#0b1421] object-contain" />
+    </div>
+  );
 
   return (
     <article id={`forum-post-${post.id}`} className="scroll-mt-28 rounded-[28px] border border-border bg-surface p-5 shadow-[0_4px_24px_var(--shadow)]">
@@ -347,10 +593,74 @@ function ForumPostCard({
       </div>
 
       <div className="mt-5 border-t border-border pt-5">
-        <div className="prose-reset markdown-readme max-w-none">
-          <MarkdownRenderer markdown={post.markdown} />
-        </div>
+        {editingPost ? (
+          <form onSubmit={handlePostUpdate} className="space-y-3">
+            <Input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} placeholder="Post title" required />
+            <Select value={editTag} onChange={(event) => setEditTag(event.target.value)} required>
+              {forumTags.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </Select>
+            <Textarea
+              value={editMarkdown}
+              onChange={(event) => setEditMarkdown(event.target.value)}
+              className="min-h-[260px]"
+              required
+            />
+            {postActionError ? <p className="text-sm text-[#b53333]">{postActionError}</p> : null}
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setEditingPost(false);
+                  setEditTitle(post.title);
+                  setEditTag(post.tag);
+                  setEditMarkdown(post.markdown);
+                  setPostActionError("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={updatingPost}>
+                {updatingPost ? "Saving..." : "Save post"}
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <div className="prose-reset markdown-readme max-w-none">
+            <MarkdownRenderer markdown={post.markdown} renderPdfLink={renderPdfLink} renderImageLink={renderImageLink} />
+          </div>
+        )}
       </div>
+
+      {canManagePost ? (
+        <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-border pt-4">
+          {!editingPost ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setEditTitle(post.title);
+                setEditTag(post.tag);
+                setEditMarkdown(post.markdown);
+                setPostActionError("");
+                setEditingPost(true);
+              }}
+            >
+              Edit post
+            </Button>
+          ) : null}
+          <Button type="button" size="sm" variant="outline" onClick={() => void handleDeletePost()} disabled={deletingPost || editingPost}>
+            {deletingPost ? "Deleting..." : "Delete post"}
+          </Button>
+        </div>
+      ) : null}
+
+      {postActionError && !editingPost ? <p className="mt-3 text-sm text-[#b53333]">{postActionError}</p> : null}
 
       <section className="mt-6 border-t border-border pt-5">
         <h3 className="text-xl text-foreground">Comments</h3>
@@ -411,6 +721,7 @@ export function ForumPageClient() {
   const [isComposing, setIsComposing] = useState(false);
   const [sortMode, setSortMode] = useState<ForumSort>("latest");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const postIds = useMemo(() => posts.map((post) => post.id), [posts]);
   const sortedPosts = useMemo(() => {
@@ -470,6 +781,23 @@ export function ForumPageClient() {
     }
 
     void loadPosts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCurrentUser() {
+      const user = await getSupabaseUser();
+      if (!cancelled) {
+        setCurrentUserId(user?.id ?? null);
+      }
+    }
+
+    void loadCurrentUser();
 
     return () => {
       cancelled = true;
@@ -587,6 +915,29 @@ export function ForumPageClient() {
       ...current,
       [comment.post_id]: [...(current[comment.post_id] ?? []), comment],
     }));
+  }
+
+  function handlePostUpdated(postId: string, payload: Pick<ForumPost, "title" | "tag" | "markdown">) {
+    setPosts((current) => current.map((post) => (post.id === postId ? { ...post, ...payload } : post)));
+  }
+
+  function handlePostDeleted(postId: string) {
+    setPosts((current) => current.filter((post) => post.id !== postId));
+    setCommentsByPost((current) => {
+      const next = { ...current };
+      delete next[postId];
+      return next;
+    });
+    setLoveCounts((current) => {
+      const next = { ...current };
+      delete next[postId];
+      return next;
+    });
+    setLovedPostIds((current) => {
+      const next = new Set(current);
+      next.delete(postId);
+      return next;
+    });
   }
 
   async function toggleLove(postId: string, isLoved: boolean) {
@@ -751,8 +1102,11 @@ export function ForumPageClient() {
               comments={commentsByPost[post.id] ?? []}
               loveCount={loveCounts[post.id] ?? 0}
               isLoved={lovedPostIds.has(post.id)}
+              currentUserId={currentUserId}
               onToggleLove={toggleLove}
               onCommentCreated={handleCommentCreated}
+              onPostUpdated={handlePostUpdated}
+              onPostDeleted={handlePostDeleted}
             />
           ))}
         </div>
