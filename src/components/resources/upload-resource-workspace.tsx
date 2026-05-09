@@ -24,7 +24,7 @@ type EditorMode = "edit" | "raw";
 
 const bucketName = process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET ?? "resource-attachments";
 const currentYear = new Date().getFullYear();
-const initialMarkdown = "# Your title\n\n### Click to edit\nYou can use markdown to format the content.\n\n## Attachment\nUpload a file by clicking \"Upload File\" button at the top. You can upload multiple files and place the links anywhere in the content.\n\n---\n\n*Note: Admin will amend the resource before publishing if there are any mistakes.*";
+const initialMarkdown = "# Click to edit title\n\nClick to edit text. You can use markdown to format the content. Upload a file by clicking \"Upload File\" button at the top. You can upload multiple files and place the links anywhere in the content.\n\n---\n\n";
 const fallbackSubjects = [
   "Additional Mathematics",
   "Bahasa Melayu",
@@ -399,7 +399,10 @@ export function UploadResourceWorkspace({ mode = "create", initialMaterial }: Up
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Resource editor</p>
-              <p className="mt-1 text-sm text-text-muted">Note: Admin will amend the resource before publishing if there are any mistakes.</p>
+              <p className="mt-1 text-sm text-text-muted">
+                Note: Admin will amend the resource before publishing if there are any mistakes.<br />
+                teenager.my is not responsible for the content uploaded by students. Please make sure to follow the <a href="/community-guidelines" className="text-blue-500 hover:underline">community guidelines</a> when uploading resources.
+              </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
