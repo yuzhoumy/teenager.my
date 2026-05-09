@@ -484,15 +484,6 @@ export default function ProfilePage() {
       ) : null}
 
       <Card>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-semibold">Rewards / Streaks</h2>
-          <Badge className="bg-foreground/10 text-foreground/70">Coming Soon</Badge>
-        </div>
-        {/* TODO: Hook streak logic from profile engagement events */}
-        <p className="text-sm text-foreground/70">Streak UI placeholder for Phase 1. Logic and rewards tracking come in next phase.</p>
-      </Card>
-
-      <Card>
         <h2 className="mb-2 font-semibold">Bookmarked Resources</h2>
         {loadingSavedResources ? (
           <p className="text-sm text-foreground/70">Loading saved resources...</p>
