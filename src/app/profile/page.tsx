@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, Pencil, Trash2 } from "lucide-react";
+import { Eye, Pencil, Trash2, Upload } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -511,7 +511,7 @@ export default function ProfilePage() {
                     {resource.subject} • {resource.year} • {resource.origin}
                   </p>
                 </div>
-                <Button asChild size="sm" variant="outline">
+                <Button asChild size="sm">
                   <Link href={getMaterialHref(resource)}>
                     <Eye className="h-4 w-4" />
                     View
@@ -524,7 +524,15 @@ export default function ProfilePage() {
       </Card>
 
       <Card>
-        <h2 className="mb-2 font-semibold">Uploaded Resources</h2>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-semibold">Uploaded Resources</h2>
+          <Button asChild size="sm">
+            <Link href="/resources/upload">
+              <Upload className="h-4 w-4" />
+              Upload resource
+            </Link>
+          </Button>
+        </div>
         {loadingUploadedResources ? (
           <p className="text-sm text-foreground/70">Loading uploaded resources...</p>
         ) : uploadedResources.length === 0 ? (

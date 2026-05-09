@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Eye, GitFork, Upload } from "lucide-react";
+import { ChevronLeft, ChevronRight, GitFork, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   buildContributionWeeks,
@@ -17,7 +17,7 @@ type ContributionGraphProps = {
 
 const monthLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const WEEK_COLUMN_WIDTH_PX = 18;
-const WEEKDAY_COLUMN_WIDTH_PX = 10;
+const WEEKDAY_COLUMN_WIDTH_PX = 26;
 const NAV_BUTTON_WITH_GAP_PX = 40;
 const weekdayLabels: Record<number, string> = {
   1: "Mon",
@@ -100,8 +100,9 @@ export function ContributionGraph({ activity, className }: ContributionGraphProp
       <div className="flex items-start gap-2">
         <Button
           type="button"
-          size="icon"
+          size="sm"
           variant="outline"
+          className="h-8 w-8 p-0"
           onClick={() => setPageStartIndex((current) => Math.max(0, current - weeksPerPage))}
           disabled={!canGoLeft}
           aria-label="Show older contributions"
@@ -159,8 +160,9 @@ export function ContributionGraph({ activity, className }: ContributionGraphProp
 
         <Button
           type="button"
-          size="icon"
+          size="sm"
           variant="outline"
+          className="h-8 w-8 p-0"
           onClick={() => setPageStartIndex((current) => Math.min(Math.max(0, weeks.length - weeksPerPage), current + weeksPerPage))}
           disabled={!canGoRight}
           aria-label="Show newer contributions"
@@ -182,12 +184,9 @@ export function ContributionGraph({ activity, className }: ContributionGraphProp
                     {item.type === "upload" ? <Upload className="h-3.5 w-3.5" /> : <GitFork className="h-3.5 w-3.5" />}
                     <span>{item.type === "upload" ? "Uploaded resource" : "Forked resource"}: {item.title}</span>
                   </div>
-                  
-                <Button asChild size="sm" variant="outline">
-                  <Link href={item.href}>
+                  <Link href={item.href} className="text-sky-600 hover:text-sky-500">
                     View
                   </Link>
-                </Button>
                 </li>
               ))}
             </ul>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, Home, MessageSquare, Upload, User } from "lucide-react";
+import { BookOpen, Home, MessageSquare, Trophy, Upload, User } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
@@ -37,10 +37,10 @@ export function MobileBottomNav() {
       active: currentPath === "/search" || (currentPath.startsWith("/resources") && currentPath !== "/resources/upload"),
     },
     {
-      href: isLoggedIn ? "/resources/upload" : "/login",
-      label: "Upload",
-      icon: Upload,
-      active: currentPath === "/resources/upload",
+      href: isLoggedIn ? "/leaderboard" : "/login",
+      label: "Leaderboard",
+      icon: Trophy,
+      active: currentPath === "/leaderboard",
     },
     {
       href: "/forum",

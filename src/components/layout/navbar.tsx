@@ -128,6 +128,9 @@ export function Navbar() {
           <Link href="/forum" className="inline-flex items-center gap-2 text-sm text-text-muted hover:text-foreground">
             Forum
           </Link>
+          <Link href="/leaderboard" className="inline-flex items-center gap-2 text-sm text-text-muted hover:text-foreground">
+            Leaderboard
+          </Link>
           <Link
             href="/notifications"
             className="inline-flex items-center gap-2 text-sm text-text-muted hover:text-foreground"
