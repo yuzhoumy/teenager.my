@@ -1,36 +1,158 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# teenager.my
 
-## Getting Started
+A **study commons** web app for Malaysian secondary students: browse and upload learning materials, **fork** PDF-based resources with annotations, discuss in a **forum**, follow other users, and get **notifications** when something relevant happens. The UI is built for long reading sessions—editorial layout, light/dark mode, and layouts tuned for phones and desktops.
 
-First, run the development server:
+Backend and auth are provided by **[Supabase](https://supabase.com)** (Postgres, Row Level Security, Auth, Storage).
+
+---
+
+## Features (overview)
+
+| Area | What it does |
+|------|----------------|
+| **Resources** | Search and filter materials (notes, trial papers, past years, etc.). Resource detail with markdown, embedded PDFs, stars/bookmarks. |
+| **Forks** | Personal forks of a resource with drawing/text annotations on PDFs; community fork listing. |
+| **Forum** | Markdown posts and threaded comments; attachments via Supabase Storage when configured. |
+| **Profiles & social** | Public profiles, follows; display names resolved from `profiles` so renames show in the forum. |
+| **Notifications** | In-app feed (follows, forks, comments, mentions, followed-activity, announcements). Backed by Postgres triggers—run the SQL migration in Supabase. |
+| **Leaderboard** | Shown when implemented in the app (if your branch includes it). |
+
+---
+
+## Tech stack
+
+- **Framework:** [Next.js](https://nextjs.org) **16** (App Router), **static export** (`output: "export"`).
+- **UI:** React 19, Tailwind CSS 4, Radix Slot, Lucide icons.
+- **Data:** `@supabase/supabase-js`, typed tables in `src/types/database.ts`.
+- **Rich content:** `react-markdown`, `react-pdf` / PDF.js (worker URL configurable—see env below), Fabric for canvas annotations.
+
+---
+
+## Prerequisites
+
+- **Node.js** 20+ (recommended; matches `package.json` types).
+- A **Supabase project** (URL + anon key at minimum).
+- **npm** (or pnpm/yarn) to install dependencies.
+
+---
+
+## Environment variables
+
+Create **`.env.local`** in the project root (never commit secrets):
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes* | Supabase project URL. |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes* | Supabase anon/public key (client-safe). |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` | No | Alternative name some setups use instead of anon key. |
+| `NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET` | No | Storage bucket for uploads (default `resource-attachments`). |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server/admin only | Service role—**do not** expose to the browser; only for scripts/admin tooling. |
+| `NEXT_PUBLIC_PDF_WORKER_URL` | No | Override PDF.js worker URL if the default CDN is blocked on your network. |
+
+\*The app runs without them for static pages, but **login, forum, uploads, and data features need Supabase configured.**
+
+---
+
+## Database (Supabase)
+
+Schema and policies live under **`supabase/`**:
+
+- `supabase/schema.sql` — baseline tables and RLS.
+- `supabase/resource_schema_migration.sql` — resource/fork-related deltas (if you maintain that file).
+- `supabase/notifications_migration.sql` — notifications + announcements + triggers (if you use that feature).
+
+Apply the SQL you need in the Supabase **SQL Editor** (or via the Supabase CLI) so the client matches `src/types/database.ts`. Enable **Realtime** on `notifications` if you want live unread badges in the navbar.
+
+---
+
+## Local development
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). After changing `.env.local`, restart the dev server.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run lint
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## Production build
 
-To learn more about Next.js, take a look at the following resources:
+This project uses **static HTML export** (`next.config.ts` → `output: "export"`).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run build
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Outputs a static site in the **`out/`** directory (trailing slashes enabled). There is **no Node server requirement** in production—you can host `out/` on any static file host.
 
-## Deploy on Vercel
+**Note:** `npm run start` runs the Next production server, which is aimed at **non-export** deployments. For this static-export setup, serve **`out/`** instead (see below).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deployment
+
+### General (static hosting)
+
+1. Set the same **`NEXT_PUBLIC_*`** variables in your host’s build environment (Vercel, Netlify, Cloudflare Pages, GitHub Actions → S3, etc.).
+2. Run **`npm ci`** (or `npm install`) then **`npm run build`**.
+3. Publish the **`out/`** folder as the site root.
+
+Configure the host to:
+
+- Serve **`index.html`** for directory routes if needed (many static hosts do this automatically for rewritten paths).
+- Use **HTTPS** so auth cookies and mixed content behave correctly.
+
+### Example: Netlify
+
+- Build command: `npm run build`
+- Publish directory: `out`
+- Add the same env vars as in `.env.local`.
+
+### Example: Cloudflare Pages
+
+- Framework preset: None or Next (static export)
+- Build command: `npm run build`
+- Output directory: `out`
+
+### Preview locally after build
+
+```bash
+npx --yes serve out
+```
+
+Or any static server pointed at `out/`.
+
+### Supabase outside production
+
+Point `NEXT_PUBLIC_SUPABASE_URL` and keys at your project. Add your **deployed site URL** to Supabase **Authentication → URL configuration** (redirect URLs / site URL) so magic links and OAuth work.
+
+---
+
+## Project layout (short)
+
+| Path | Role |
+|------|------|
+| `src/app/` | Routes (App Router), global layout, pages. |
+| `src/components/` | UI: layout, forum, resources, profile, notifications, etc. |
+| `src/lib/` | Supabase clients, helpers (e.g. `pdfjs-worker`, materials). |
+| `src/types/database.ts` | Generated or hand-maintained Supabase types. |
+| `public/` | Static assets served as-is. |
+| `supabase/` | SQL migrations / reference schema. |
+
+---
+
+## Agent / contributor notes
+
+- Next.js in this repo may differ from older docs; see `AGENTS.md` / `CLAUDE.md` if present.
+- Follow existing patterns: small, focused changes; match file style and types.
+
+---
+
+## License
+
+Private project unless you add an explicit license file.
