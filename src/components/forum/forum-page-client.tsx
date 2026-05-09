@@ -322,7 +322,7 @@ function ForumPostCard({
   }
 
   return (
-    <article className="rounded-[28px] border border-border bg-surface p-5 shadow-[0_4px_24px_var(--shadow)]">
+    <article id={`forum-post-${post.id}`} className="scroll-mt-28 rounded-[28px] border border-border bg-surface p-5 shadow-[0_4px_24px_var(--shadow)]">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -557,6 +557,23 @@ export function ForumPageClient() {
       cancelled = true;
     };
   }, [postIds.join("|")]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || loading || posts.length === 0) {
+      return;
+    }
+
+    const rawHash = window.location.hash.replace(/^#/, "");
+    if (!rawHash.startsWith("forum-post-")) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      document.getElementById(rawHash)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+
+    return () => window.clearTimeout(timer);
+  }, [loading, posts.length]);
 
   function handlePostCreated(post: ForumPost) {
     setPosts((current) => [post, ...current]);

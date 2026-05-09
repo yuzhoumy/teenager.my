@@ -8,6 +8,14 @@ const ResourceDetailClient = dynamic(
   { ssr: false }
 );
 
-export function ResourceDetailClientShell({ material }: { material: StudyMaterial }) {
-  return <ResourceDetailClient material={material} />;
+type InitialTab = "resource" | "fork" | "discussion";
+
+export function ResourceDetailClientShell({
+  material,
+  initialTab,
+}: {
+  material: StudyMaterial;
+  initialTab?: InitialTab;
+}) {
+  return <ResourceDetailClient material={material} initialTab={initialTab} />;
 }

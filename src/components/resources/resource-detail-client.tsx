@@ -1,7 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, CalendarDays, CheckCircle2, GraduationCap, MessageSquare, Tag, UserRound } from "lucide-react";
 import {
@@ -46,9 +47,22 @@ function extractPdfLinks(markdown: string) {
   return links;
 }
 
-export function ResourceDetailClient({ material }: { material: StudyMaterial }) {
+export function ResourceDetailClient({
+  material,
+  initialTab,
+}: {
+  material: StudyMaterial;
+  initialTab?: TabKey;
+}) {
+  const searchParams = useSearchParams();
   const [currentUploaderName, setCurrentUploaderName] = useState<{ materialId: string; authorName: string } | null>(null);
-  const [currentTab, setCurrentTab] = useState<TabKey>("resource");
+  const [currentTab, setCurrentTab] = useState<TabKey>(() => {
+    const tabQuery = searchParams.get("tab");
+    if (tabQuery === "discussion" || tabQuery === "fork" || tabQuery === "resource") {
+      return tabQuery;
+    }
+    return initialTab ?? "resource";
+  });
   const [pinnedForks, setPinnedForks] = useState<PinnedFork[]>([]);
   const [loadingPinnedForks, setLoadingPinnedForks] = useState(false);
   const [pinnedForksError, setPinnedForksError] = useState("");
@@ -62,6 +76,15 @@ export function ResourceDetailClient({ material }: { material: StudyMaterial }) 
   );
   const pdfLinks = useMemo(() => extractPdfLinks(displayMaterial.content_markdown), [displayMaterial.content_markdown]);
   const primaryPdf = pdfLinks[0] ?? null;
+
+  useEffect(() => {
+    const tabQuery = searchParams.get("tab");
+    if (tabQuery === "discussion" || tabQuery === "fork" || tabQuery === "resource") {
+      startTransition(() => {
+        setCurrentTab(tabQuery);
+      });
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     let cancelled = false;

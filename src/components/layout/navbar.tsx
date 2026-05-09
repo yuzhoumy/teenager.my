@@ -1,18 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, MessageSquare, Moon, Sun, Upload, UserCircle2 } from "lucide-react";
+import { Bell, Moon, Sun, Upload, UserCircle2 } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
 
-const futureModules = [
-  "Notifications",
-  "Streaks",
-] as const;
+const futureModules = ["Streaks"] as const;
 
 export function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [themeVersion, setThemeVersion] = useState(0);
   const hasMounted = useSyncExternalStore(
     () => () => undefined,
@@ -56,6 +54,55 @@ export function Navbar() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!isSupabaseConfigured || !isLoggedIn) {
+      return;
+    }
+
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    async function setup() {
+      const user = await getSupabaseUser();
+      if (!user || cancelled) {
+        return;
+      }
+
+      async function refreshUnread() {
+        const { count, error } = await supabase
+          .from("notifications")
+          .select("*", { count: "exact", head: true })
+          .is("read_at", null);
+
+        if (!cancelled) {
+          setUnreadNotifications(error ? 0 : count ?? 0);
+        }
+      }
+
+      await refreshUnread();
+
+      channel = supabase
+        .channel(`navbar-notifications:${user.id}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "notifications", filter: `recipient_id=eq.${user.id}` },
+          () => void refreshUnread(),
+        )
+        .subscribe();
+    }
+
+    void setup();
+
+    return () => {
+      cancelled = true;
+      if (channel) {
+        void supabase.removeChannel(channel);
+      }
+    };
+  }, [isLoggedIn]);
+
+  const unreadBadgeCount = isLoggedIn ? unreadNotifications : 0;
+
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur-xl">
       <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
@@ -80,6 +127,12 @@ export function Navbar() {
           </Link>
           <Link href="/forum" className="inline-flex items-center gap-2 text-sm text-text-muted hover:text-foreground">
             Forum
+          </Link>
+          <Link
+            href="/notifications"
+            className="inline-flex items-center gap-2 text-sm text-text-muted hover:text-foreground"
+          >
+            Notifications
           </Link>
           <Link href={isLoggedIn ? "/resources/upload" : "/login"} className="inline-flex items-center gap-2 text-sm font-semibold text-brand hover:text-brand-soft">
             <Upload className="h-4 w-4" />
@@ -110,15 +163,27 @@ export function Navbar() {
           </Button>
         </nav>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          className="rounded-full border border-border bg-surface shadow-[0_0_0_1px_var(--border)] lg:hidden"
-          onClick={toggleTheme}
-          aria-label={themeAriaLabel}
-        >
-          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-        </Button>
+        <div className="flex items-center gap-2 lg:hidden">
+          {isLoggedIn ? (
+            <Button variant="ghost" size="sm" className="relative rounded-full border border-border bg-surface shadow-[0_0_0_1px_var(--border)]" asChild>
+              <Link href="/notifications" aria-label="Notifications">
+                <Bell className="h-4 w-4" strokeWidth={2} />
+                {unreadBadgeCount > 0 ? (
+                  <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-brand ring-2 ring-[var(--background)]" />
+                ) : null}
+              </Link>
+            </Button>
+          ) : null}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="rounded-full border border-border bg-surface shadow-[0_0_0_1px_var(--border)]"
+            onClick={toggleTheme}
+            aria-label={themeAriaLabel}
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </Button>
+        </div>
       </div>
     </header>
   );

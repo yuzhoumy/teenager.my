@@ -17,6 +17,20 @@ export type AnnotationRect = {
   height: number;
 };
 
+export type NotificationType =
+  | "follow"
+  | "fork_material"
+  | "comment_material"
+  | "mention_material"
+  | "comment_forum"
+  | "reply_forum"
+  | "mention_forum"
+  | "new_material_followed"
+  | "new_fork_followed"
+  | "new_post_followed"
+  | "announcement"
+  | "fork_annotation";
+
 export type Database = {
   public: {
     Tables: {
@@ -296,6 +310,50 @@ export type Database = {
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["forum_post_loves"]["Insert"]>;
+      };
+      notifications: {
+        Row: {
+          id: string;
+          recipient_id: string;
+          actor_id: string | null;
+          type: NotificationType;
+          payload: Json;
+          read_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          recipient_id: string;
+          actor_id?: string | null;
+          type: NotificationType;
+          payload?: Json;
+          read_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          actor_id?: string | null;
+          type?: NotificationType;
+          payload?: Json;
+          read_at?: string | null;
+          created_at?: string;
+        };
+      };
+      announcements: {
+        Row: {
+          id: string;
+          title: string;
+          body: string;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          body: string;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["announcements"]["Insert"]>;
       };
     };
   };

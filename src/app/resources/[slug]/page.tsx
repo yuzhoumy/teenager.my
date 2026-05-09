@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import {
   getMaterialBySlug,
   getMaterialSlugs,
@@ -31,11 +32,20 @@ export async function generateMetadata(props: ResourcePageProps): Promise<Metada
 
 export default async function ResourceDetailPage(props: ResourcePageProps) {
   const { slug } = await props.params;
+  const searchParams = await props.searchParams;
+  const tabRaw = searchParams.tab;
+  const initialTab =
+    tabRaw === "discussion" || tabRaw === "fork" || tabRaw === "resource" ? tabRaw : undefined;
+
   const material = await getMaterialBySlug(slug);
 
   if (!material) {
     notFound();
   }
 
-  return <ResourceDetailClientShell material={material} />;
+  return (
+    <Suspense fallback={<p className="text-sm text-text-muted">Loading resource…</p>}>
+      <ResourceDetailClientShell material={material} initialTab={initialTab} />
+    </Suspense>
+  );
 }
