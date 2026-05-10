@@ -35,6 +35,17 @@ const fallbackSubjects = [
   "Physics",
   "Science",
   "Sejarah",
+  "Pendidikan Moral",
+  "Pendidikan Islam",
+  "Bahasa Cina",
+  "Bahasa Tamil",
+  "Geography",
+  "RBT",
+  "Asas Sains Komputer",
+  "Prinsip Perakaunan",
+  "Ekonomi",
+  "Sains Komputer",
+  "Asas Sains Komputer",
 ];
 
 function createSlug(title: string) {

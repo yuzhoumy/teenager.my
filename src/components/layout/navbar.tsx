@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, Moon, Sun, Upload, UserCircle2 } from "lucide-react";
+import { Bell, MapPinned, Moon, Sun, Upload, UserCircle2 } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
@@ -130,6 +130,9 @@ export function Navbar() {
           </Link>
           <Link href="/leaderboard" className="inline-flex items-center gap-2 text-sm text-text-muted hover:text-foreground">
             Leaderboard
+          </Link>
+          <Link href="/study-zone" className="inline-flex items-center gap-2 text-sm text-text-muted hover:text-foreground">
+            Study Zone
           </Link>
           <Link
             href="/notifications"

@@ -1,4 +1,7 @@
 @import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+@import "leaflet.markercluster/dist/MarkerCluster.css";
+@import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 
 :root {
   --background: #f5f4ed;
@@ -141,4 +144,64 @@ p {
 
 .markdown-content > :last-child {
   margin-bottom: 0;
+}
+
+.study-zone-map .leaflet-container {
+  height: 100%;
+  width: 100%;
+  background: var(--surface-muted);
+  color: var(--foreground);
+  font-family: var(--font-sans-stack);
+}
+
+.study-zone-map .leaflet-tile,
+.study-zone-map .leaflet-marker-icon,
+.study-zone-map .leaflet-marker-shadow {
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.study-zone-map .leaflet-tile {
+  height: 256px !important;
+  width: 256px !important;
+}
+
+.study-zone-map .leaflet-popup-content-wrapper,
+.study-zone-map .leaflet-popup-tip {
+  background: var(--surface-strong);
+  color: var(--foreground);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 18px 50px var(--shadow);
+}
+
+.study-zone-map .leaflet-popup-content {
+  margin: 14px;
+  min-width: 190px;
+}
+
+.study-zone-map .study-zone-marker {
+  display: grid;
+  height: 34px;
+  width: 34px;
+  place-items: center;
+  border: 2px solid #faf9f5;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #faf9f5;
+  box-shadow: 0 10px 26px rgba(20, 20, 19, 0.28);
+}
+
+.study-zone-map .marker-cluster-small,
+.study-zone-map .marker-cluster-medium,
+.study-zone-map .marker-cluster-large {
+  background-color: color-mix(in srgb, var(--brand) 25%, transparent);
+}
+
+.study-zone-map .marker-cluster-small div,
+.study-zone-map .marker-cluster-medium div,
+.study-zone-map .marker-cluster-large div {
+  background-color: var(--brand);
+  color: #faf9f5;
+  font-family: var(--font-sans-stack);
+  font-weight: 700;
 }

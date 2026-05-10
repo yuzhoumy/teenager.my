@@ -70,6 +70,90 @@ export type Database = {
         };
         Update: Partial<Database["public"]["Tables"]["profile_follows"]["Insert"]>;
       };
+      profile_reports: {
+        Row: {
+          id: string;
+          reported_user_id: string;
+          reporter_id: string;
+          reason: string;
+          status: "open" | "reviewed" | "dismissed";
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          reported_user_id: string;
+          reporter_id: string;
+          reason: string;
+          status?: "open" | "reviewed" | "dismissed";
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["profile_reports"]["Insert"]>;
+      };
+      study_sessions: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          title: string;
+          description: string | null;
+          subject: string | null;
+          location_name: string;
+          address: string | null;
+          lat: number;
+          lng: number;
+          max_participants: number;
+          starts_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          title?: string;
+          description?: string | null;
+          subject?: string | null;
+          location_name: string;
+          address?: string | null;
+          lat: number;
+          lng: number;
+          max_participants?: number;
+          starts_at?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["study_sessions"]["Insert"]>;
+      };
+      study_session_participants: {
+        Row: {
+          id: string;
+          session_id: string;
+          user_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          session_id: string;
+          user_id: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["study_session_participants"]["Insert"]>;
+      };
+      study_session_comments: {
+        Row: {
+          id: string;
+          session_id: string;
+          user_id: string | null;
+          author_name: string;
+          body: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          session_id: string;
+          user_id?: string | null;
+          author_name: string;
+          body: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["study_session_comments"]["Insert"]>;
+      };
       materials: {
         Row: {
           id: string;

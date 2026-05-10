@@ -1,6 +1,6 @@
 /** Shared system prompt for the floating tutor (server API route). */
 
-export const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash";
+export const DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
 
 export const TUTOR_SYSTEM_INSTRUCTION = `You are a supportive study tutor for Malaysian secondary school students who use teenager.my, a shared learning site with study materials, PDF forks with annotations, and a student forum.
 

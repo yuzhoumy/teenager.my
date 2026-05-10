@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, BookOpen, LoaderCircle, Star, UserCheck, UserPlus, UserRound } from "lucide-react";
+import { ArrowLeft, BookOpen, Flag, LoaderCircle, Star, UserCheck, UserPlus, UserRound, X } from "lucide-react";
 import { getEducationLevelLabel } from "@/lib/education-levels";
 import { getMaterialHref } from "@/lib/materials";
 import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
@@ -14,6 +15,7 @@ import type { Database } from "@/types/database";
 import type { ForkStar, StudyMaterial, UserFork } from "@/types/resource";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 
@@ -31,6 +33,11 @@ export function PublicProfileClient() {
   const [updatingFollow, setUpdatingFollow] = useState(false);
   const [followingCount, setFollowingCount] = useState(0);
   const [followerCount, setFollowerCount] = useState(0);
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportMessage, setReportMessage] = useState("");
+  const [reportMessageType, setReportMessageType] = useState<"success" | "error">("success");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const contributionActivity = useMemo<ContributionActivity[]>(
@@ -265,6 +272,45 @@ export function PublicProfileClient() {
     setFollowerCount((current) => current + 1);
   }
 
+  async function submitReport(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!userId || !currentUserId || reportSubmitting) {
+      return;
+    }
+
+    const reason = reportReason.trim();
+
+    if (reason.length < 10) {
+      setReportMessageType("error");
+      setReportMessage("Please add a little more detail before sending the report.");
+      return;
+    }
+
+    setReportSubmitting(true);
+    setReportMessage("");
+
+    const payload: Database["public"]["Tables"]["profile_reports"]["Insert"] = {
+      reported_user_id: userId,
+      reporter_id: currentUserId,
+      reason,
+    };
+    const { error: reportError } = await supabase.from("profile_reports").insert(payload as never);
+
+    setReportSubmitting(false);
+
+    if (reportError) {
+      setReportMessageType("error");
+      setReportMessage(reportError.message);
+      return;
+    }
+
+    setReportMessageType("success");
+    setReportMessage("Thanks. Your report has been saved for review.");
+    setReportReason("");
+    setIsReportOpen(false);
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-text-muted">
@@ -318,17 +364,39 @@ export function PublicProfileClient() {
               <h1 className="mt-2 text-3xl text-foreground">{profile.display_name}</h1>
               <p className="mt-2 text-sm text-text-muted">{getEducationLevelLabel(profile.form)}</p>
               {currentUserId ? (
-                <Button type="button" size="sm" className="mt-4" variant={isFollowing ? "secondary" : "default"} onClick={toggleFollow} disabled={updatingFollow}>
-                  {isFollowing ? <UserCheck className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-                  {updatingFollow ? "Updating..." : isFollowing ? "Following" : "Follow"}
-                </Button>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button type="button" size="sm" variant={isFollowing ? "secondary" : "default"} onClick={toggleFollow} disabled={updatingFollow}>
+                    {isFollowing ? <UserCheck className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+                    {updatingFollow ? "Updating..." : isFollowing ? "Following" : "Follow"}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setIsReportOpen((current) => !current);
+                      setReportMessage("");
+                    }}
+                  >
+                    {isReportOpen ? <X className="h-4 w-4" /> : <Flag className="h-4 w-4" />}
+                    {isReportOpen ? "Cancel report" : "Report"}
+                  </Button>
+                </div>
               ) : (
-                <Button asChild size="sm" className="mt-4" variant="outline">
-                  <Link href="/login">
-                    <UserPlus className="h-4 w-4" />
-                    Log in to follow
-                  </Link>
-                </Button>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button asChild size="sm" variant="outline">
+                    <Link href="/login">
+                      <UserPlus className="h-4 w-4" />
+                      Log in to follow
+                    </Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href="/login">
+                      <Flag className="h-4 w-4" />
+                      Log in to report
+                    </Link>
+                  </Button>
+                </div>
               )}
             </div>
           </div>
@@ -358,6 +426,42 @@ export function PublicProfileClient() {
         </div>
 
         {error ? <p className="mt-4 rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">{error}</p> : null}
+        {isReportOpen ? (
+          <form onSubmit={submitReport} className="mt-4 rounded-2xl border border-border bg-background p-4">
+            <label htmlFor="profile-report-reason" className="text-sm font-medium text-foreground">
+              Reason for report
+            </label>
+            <Textarea
+              id="profile-report-reason"
+              value={reportReason}
+              onChange={(event) => setReportReason(event.target.value)}
+              minLength={10}
+              maxLength={1000}
+              required
+              rows={4}
+              className="mt-2"
+              placeholder="Tell us what seems unsafe, inappropriate, or misleading."
+            />
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <Button type="submit" size="sm" disabled={reportSubmitting}>
+                <Flag className="h-4 w-4" />
+                {reportSubmitting ? "Sending..." : "Submit report"}
+              </Button>
+              <p className="text-xs text-text-muted">{reportReason.trim().length}/1000 characters</p>
+            </div>
+          </form>
+        ) : null}
+        {reportMessage ? (
+          <p
+            className={
+              reportMessageType === "success"
+                ? "mt-4 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200"
+                : "mt-4 rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200"
+            }
+          >
+            {reportMessage}
+          </p>
+        ) : null}
 
         <div className="mt-6 rounded-[24px] border border-border bg-background p-5">
           <h2 className="mb-2 text-xl text-foreground">Contributions</h2>

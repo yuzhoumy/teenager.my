@@ -51,7 +51,7 @@ Create **`.env.local`** in the project root (never commit secrets):
 | `SUPABASE_SERVICE_ROLE_KEY` | Server/admin only | Service role—**do not** expose to the browser; only for scripts/admin tooling. |
 | `NEXT_PUBLIC_PDF_WORKER_URL` | No | Override PDF.js worker URL if the default CDN is blocked on your network. |
 | `GEMINI_API_KEY` | Tutor on Node/Vercel | Server-only key for `POST /api/tutor/`. |
-| `GEMINI_MODEL` | No | Server model id (default `gemini-2.0-flash`). |
+| `GEMINI_MODEL` | No | Server model id (default `gemini-3.1-flash-lite`). |
 | `NEXT_PUBLIC_GEMINI_API_KEY` | Tutor on GitHub Pages | Browser fallback when `/api/tutor/` is missing (**embedded in JS** — restrict by referrer). GitHub Actions: add as repository secret; workflow passes it into the build. |
 | `NEXT_PUBLIC_GEMINI_MODEL` | No | Browser fallback model id. |
 
