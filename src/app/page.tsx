@@ -21,9 +21,9 @@ export default function Home() {
       body: "A place to discuss resources, ask questions, and share study tips. A community space that connects students and teachers beyond the resources themselves.",
     },
     {
-      href: "/leaderboard",
-      title: "Leaderboard",
-      body: "Let's see who's the most active and helpful in the community! A friendly competition to encourage contributions and engagement, with fun badges and rewards for top contributors.",
+      href: "/study-zone",
+      title: "Study zone",
+      body: "Online to offline study groups that you can join. Find a study group nearby or start your own and invite others to join you.",
     },
   ] as const;
 
