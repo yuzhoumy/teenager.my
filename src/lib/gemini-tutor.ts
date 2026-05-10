@@ -8,17 +8,14 @@ export async function sendTutorMessage(
   priorMessages: TutorChatMessage[],
   userMessage: string,
 ): Promise<string> {
-  const base =
-    typeof window !== "undefined" && window.location?.origin
-      ? window.location.origin
-      : "";
-
-  const url = `${base}/api/tutor`;
+  // Relative URL + trailing slash matches `trailingSlash: true` and avoids POST→GET mishandling on redirects.
+  const url = "/api/tutor/";
 
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ priorMessages, userMessage }),
+    credentials: "same-origin",
   });
 
   let data: { reply?: string; error?: string } = {};

@@ -107,7 +107,9 @@ Use **`npm run start`** for a production Node server (needed for **API routes** 
    - **`GEMINI_API_KEY`** (same key you use in `.env.local` for local tutor tests)
 3. Redeploy after changing secrets.
 
-The AI tutor calls **`POST /api/tutor`** on the same origin, so the Gemini key stays on the server.
+The AI tutor calls **`POST /api/tutor/`** (trailing slash matches `next.config`) on the same origin, so the Gemini key stays on the server.
+
+**If the tutor returns HTTP 405 in production:** the deployment is almost certainly still **static-only** (no Next server). That happens if `output: "export"` is enabled or the host only uploads the `out/` folder. Remove static export, deploy with **`next start`** or Vercel’s Next preset, and ensure **`GEMINI_API_KEY`** is set in the host env.
 
 ### Other hosts
 
