@@ -94,6 +94,31 @@ textarea {
     transform 180ms ease;
 }
 
+@media (pointer: coarse) {
+  a,
+  button,
+  [role="button"],
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+  }
+
+  button,
+  [type="button"],
+  [type="submit"],
+  [type="reset"],
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  a.inline-flex,
+  a.flex {
+    min-height: 44px;
+  }
+}
+
 h1,
 h2,
 h3,

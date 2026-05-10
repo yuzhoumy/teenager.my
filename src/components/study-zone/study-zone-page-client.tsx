@@ -322,7 +322,7 @@ export function StudyZonePageClient() {
       </div>
 
       <div className="space-y-3 md:relative md:space-y-0">
-        <div className="z-10 rounded-2xl border border-border-strong bg-surface/95 p-2 shadow-[0_8px_28px_var(--shadow)] backdrop-blur md:absolute md:right-3 md:top-3 md:w-[calc(100%-1.5rem)] md:max-w-md md:p-3 md:shadow-[0_14px_45px_var(--shadow)]">
+        <div className="pointer-events-auto relative z-20 rounded-2xl border border-border-strong bg-surface/95 p-2 shadow-[0_8px_28px_var(--shadow)] backdrop-blur md:absolute md:right-3 md:top-3 md:w-[calc(100%-1.5rem)] md:max-w-md md:p-3 md:shadow-[0_14px_45px_var(--shadow)]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-soft" />
             <Input
@@ -332,19 +332,45 @@ export function StudyZonePageClient() {
               placeholder="Search posts or places"
             />
           </div>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <Button type="button" size="sm" variant="outline" onClick={() => setLocateSignal((current) => current + 1)}>
+          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_44px_44px]">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="min-h-11 min-w-0 px-2 sm:min-h-9 sm:px-3"
+              onClick={() => setLocateSignal((current) => current + 1)}
+            >
               <LocateFixed className="h-4 w-4" />
               Locate Me
             </Button>
-            <Button type="button" size="sm" onClick={searchCurrentArea} disabled={!currentBounds || loading}>
+            <Button
+              type="button"
+              size="sm"
+              className="min-h-11 min-w-0 px-2 sm:min-h-9 sm:px-3"
+              onClick={searchCurrentArea}
+              disabled={!currentBounds || loading}
+            >
               <MapPinned className="h-4 w-4" />
               Search this area
             </Button>
-            <Button type="button" size="sm" variant="outline" onClick={() => setZoomCommand((current) => ({ direction: "in", id: (current?.id ?? 0) + 1 }))}>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="min-h-11 w-full px-0 sm:min-h-9"
+              onClick={() => setZoomCommand((current) => ({ direction: "in", id: (current?.id ?? 0) + 1 }))}
+              aria-label="Zoom in"
+            >
               <ZoomIn className="h-4 w-4" />
             </Button>
-            <Button type="button" size="sm" variant="outline" onClick={() => setZoomCommand((current) => ({ direction: "out", id: (current?.id ?? 0) + 1 }))}>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="min-h-11 w-full px-0 sm:min-h-9"
+              onClick={() => setZoomCommand((current) => ({ direction: "out", id: (current?.id ?? 0) + 1 }))}
+              aria-label="Zoom out"
+            >
               <ZoomOut className="h-4 w-4" />
             </Button>
           </div>

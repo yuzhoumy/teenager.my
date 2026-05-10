@@ -58,7 +58,7 @@ export function FloatingAiTutor() {
   return (
     <div
       className={cn(
-        "fixed right-4 z-50 flex flex-col items-end gap-3",
+        "pointer-events-none fixed right-4 z-50 flex flex-col items-end gap-3",
         "bottom-[calc(5.75rem+env(safe-area-inset-bottom))] lg:bottom-8 lg:right-8",
       )}
     >
@@ -155,7 +155,7 @@ export function FloatingAiTutor() {
         size="lg"
         className={cn(
           "h-14 min-h-14 rounded-full px-5 shadow-[0_12px_32px_var(--shadow)]",
-          "gap-2 border-brand bg-brand text-[#faf9f5] hover:bg-[#b85a3a]",
+          "pointer-events-auto gap-2 border-brand bg-brand text-[#faf9f5] hover:bg-[#b85a3a]",
         )}
         onClick={() => setOpen((current) => !current)}
         aria-expanded={open}
