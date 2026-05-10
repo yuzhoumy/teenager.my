@@ -45,7 +45,6 @@ const fallbackSubjects = [
   "Prinsip Perakaunan",
   "Ekonomi",
   "Sains Komputer",
-  "Asas Sains Komputer",
 ];
 
 function createSlug(title: string) {

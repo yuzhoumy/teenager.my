@@ -18,7 +18,7 @@ export function ResourceSidebar({
         </div>
 
         <p className="mt-3 text-sm leading-6 text-text-muted">
-          Pinned forks are configured directly in the database and rendered below the main resource.
+          Admin will pin forks that are high-quality and useful. If you think a fork should be pinned, please contact the admin team with the resource title and author name.
         </p>
 
         {pinnedForks.length > 0 ? (

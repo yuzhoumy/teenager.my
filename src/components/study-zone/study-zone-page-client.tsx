@@ -59,7 +59,6 @@ const studySessionSubjectOptions = [
   "Prinsip Perakaunan",
   "Ekonomi",
   "Sains Komputer",
-  "Asas Sains Komputer",
 ];
 
 function formatBounds(bounds: StudyZoneBounds | null) {
