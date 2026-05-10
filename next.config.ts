@@ -1,9 +1,13 @@
 import type { NextConfig } from "next";
 
+/** GitHub Pages (and similar) only serve static files — emit `out/`. Full Next deployments omit this so `/api/*` works. */
+const staticExport =
+  process.env.GITHUB_PAGES === "true" || process.env.STATIC_EXPORT === "true";
+
 const nextConfig: NextConfig = {
+  ...(staticExport ? { output: "export" as const } : {}),
   trailingSlash: true,
   basePath: "",
-  // Cannot use `output: "export"` here: static hosts have no `/api/*` handlers (POST → 405/404).
   images: {
     unoptimized: true,
   },

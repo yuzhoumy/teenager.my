@@ -109,11 +109,17 @@ Use **`npm run start`** for a production Node server (needed for **API routes** 
 
 The AI tutor calls **`POST /api/tutor/`** (trailing slash matches `next.config`) on the same origin, so the Gemini key stays on the server.
 
-**If the tutor returns HTTP 405 in production:** the deployment is almost certainly still **static-only** (no Next server). That happens if `output: "export"` is enabled or the host only uploads the `out/` folder. Remove static export, deploy with **`next start`** or Vercel’s Next preset, and ensure **`GEMINI_API_KEY`** is set in the host env.
+**If the tutor returns HTTP 405 in production:** the deployment is almost certainly still **static-only** (no Next server). Deploy with **`next start`** or Vercel’s Next preset (do **not** set `GITHUB_PAGES` / `STATIC_EXPORT` there), and ensure **`GEMINI_API_KEY`** is set in the host env.
+
+### GitHub Pages (static)
+
+The workflow **`.github/workflows/deploy-pages.yml`** sets **`GITHUB_PAGES=true`** during `npm run build`, which enables **`output: "export"`** and produces **`out/`** for `upload-pages-artifact`.
+
+GitHub Pages cannot run **`/api/tutor`** — the floating AI tutor will **not** work there unless you point it at an external API (e.g. Supabase Edge Function). The rest of the app works as static HTML.
 
 ### Other hosts
 
-Any setup that runs **`next build`** and **`next start`** (or the platform’s Next.js integration) works. Pure **static file hosting of `out/` only** will **not** run `/api/tutor`; use a Node-capable Next deployment instead.
+Any setup that runs **`next build`** and **`next start`** (or the platform’s Next.js integration) works—leave **`GITHUB_PAGES`** unset so static export stays off.
 
 ### Supabase in production
 
