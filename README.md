@@ -50,8 +50,10 @@ Create **`.env.local`** in the project root (never commit secrets):
 | `NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET` | No | Storage bucket for uploads (default `resource-attachments`). |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server/admin only | Service role—**do not** expose to the browser; only for scripts/admin tooling. |
 | `NEXT_PUBLIC_PDF_WORKER_URL` | No | Override PDF.js worker URL if the default CDN is blocked on your network. |
-| `GEMINI_API_KEY` | For AI tutor | Google AI / Gemini API key. Used **only on the server** by `POST /api/tutor` — **never** commit it; add it to `.env.local` locally and to your **hosting provider’s environment variables** for production (`.env.local` is **not** uploaded with your site). |
-| `GEMINI_MODEL` | No | Gemini model id (defaults to `gemini-2.0-flash` via `src/lib/gemini-tutor-prompt.ts`). |
+| `GEMINI_API_KEY` | Tutor on Node/Vercel | Server-only key for `POST /api/tutor/`. |
+| `GEMINI_MODEL` | No | Server model id (default `gemini-2.0-flash`). |
+| `NEXT_PUBLIC_GEMINI_API_KEY` | Tutor on GitHub Pages | Browser fallback when `/api/tutor/` is missing (**embedded in JS** — restrict by referrer). GitHub Actions: add as repository secret; workflow passes it into the build. |
+| `NEXT_PUBLIC_GEMINI_MODEL` | No | Browser fallback model id. |
 
 \*The app runs without Supabase for static-looking pages, but **login, forum, uploads, and data features need Supabase configured.**
 
@@ -115,7 +117,9 @@ The AI tutor calls **`POST /api/tutor/`** (trailing slash matches `next.config`)
 
 The workflow **`.github/workflows/deploy-pages.yml`** sets **`GITHUB_PAGES=true`** during `npm run build`, which enables **`output: "export"`** and produces **`out/`** for `upload-pages-artifact`.
 
-GitHub Pages cannot run **`/api/tutor`** — the floating AI tutor will **not** work there unless you point it at an external API (e.g. Supabase Edge Function). The rest of the app works as static HTML.
+GitHub Pages cannot run **`/api/tutor`**. The tutor **detects 404/405/503** and falls back to calling Gemini **from the browser** if you add repository secrets **`NEXT_PUBLIC_GEMINI_API_KEY`** (and optionally **`NEXT_PUBLIC_GEMINI_MODEL`**). That key is embedded in the JS bundle—**restrict it by HTTP referrer** in Google AI Studio / Cloud Console.
+
+For production without exposing any key, deploy on **Vercel** with **`GEMINI_API_KEY`** only (server route).
 
 ### Other hosts
 
