@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { CalendarClock, LocateFixed, MapPinned, Plus, RefreshCcw, Search, Send, TrendingUp, X } from "lucide-react";
+import { CalendarClock, LocateFixed, MapPinned, Plus, RefreshCcw, Search, Send, TrendingUp, X, ZoomIn, ZoomOut } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { AddressPicker, type PickedAddress } from "./address-picker";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,11 @@ export type StudySessionMapItem = Pick<
   Database["public"]["Tables"]["study_sessions"]["Row"],
   "id" | "title" | "description" | "subject" | "location_name" | "address" | "lat" | "lng" | "max_participants" | "starts_at" | "created_at"
 >;
+
+export type StudyZoneZoomCommand = {
+  direction: "in" | "out";
+  id: number;
+};
 
 const StudyZoneMap = dynamic(() => import("./study-zone-map").then((module) => module.StudyZoneMap), {
   ssr: false,
@@ -211,6 +216,7 @@ export function StudyZonePageClient() {
   const [currentBounds, setCurrentBounds] = useState<StudyZoneBounds | null>(null);
   const [activeBounds, setActiveBounds] = useState<StudyZoneBounds | null>(null);
   const [locateSignal, setLocateSignal] = useState(0);
+  const [zoomCommand, setZoomCommand] = useState<StudyZoneZoomCommand | null>(null);
   const [showStartSession, setShowStartSession] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -319,6 +325,7 @@ export function StudyZonePageClient() {
         <StudyZoneMap
           sessions={visibleSessions}
           locateSignal={locateSignal}
+          zoomCommand={zoomCommand}
           onBoundsChange={setCurrentBounds}
           onLocateError={setError}
           onScrollToPost={scrollToPost}
@@ -330,7 +337,7 @@ export function StudyZonePageClient() {
             <Input
               value={filterText}
               onChange={(event) => setFilterText(event.target.value)}
-              className="pl-9"
+              className="pl-9 pr-24"
               placeholder="Search posts or places"
             />
           </div>
@@ -342,6 +349,12 @@ export function StudyZonePageClient() {
             <Button type="button" size="sm" onClick={searchCurrentArea} disabled={!currentBounds || loading}>
               <MapPinned className="h-4 w-4" />
               Search this area
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => setZoomCommand((current) => ({ direction: "in", id: (current?.id ?? 0) + 1 }))}>
+              <ZoomIn className="h-4 w-4" />
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => setZoomCommand((current) => ({ direction: "out", id: (current?.id ?? 0) + 1 }))}>
+              <ZoomOut className="h-4 w-4" />
             </Button>
           </div>
         </div>

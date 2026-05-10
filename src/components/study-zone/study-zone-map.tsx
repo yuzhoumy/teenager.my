@@ -5,13 +5,14 @@ import type { LatLngBounds } from "leaflet";
 import { useEffect, useMemo } from "react";
 import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
-import type { StudySessionMapItem, StudyZoneBounds } from "./study-zone-page-client";
+import type { StudySessionMapItem, StudyZoneBounds, StudyZoneZoomCommand } from "./study-zone-page-client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type StudyZoneMapProps = {
   sessions: StudySessionMapItem[];
   locateSignal: number;
+  zoomCommand: StudyZoneZoomCommand | null;
   onBoundsChange: (bounds: StudyZoneBounds) => void;
   onLocateError: (message: string) => void;
   onScrollToPost: (sessionId: string) => void;
@@ -66,6 +67,25 @@ function MapEvents({ locateSignal, onBoundsChange, onLocateError }: Pick<StudyZo
       { enableHighAccuracy: true, timeout: 10000 },
     );
   }, [locateSignal, map, onLocateError]);
+
+  return null;
+}
+
+function MapZoomController({ zoomCommand }: Pick<StudyZoneMapProps, "zoomCommand">) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!zoomCommand) {
+      return;
+    }
+
+    if (zoomCommand.direction === "in") {
+      map.zoomIn();
+      return;
+    }
+
+    map.zoomOut();
+  }, [map, zoomCommand]);
 
   return null;
 }
@@ -126,7 +146,7 @@ function MapSizeController({ sessions, onBoundsChange }: Pick<StudyZoneMapProps,
   return null;
 }
 
-export function StudyZoneMap({ sessions, locateSignal, onBoundsChange, onLocateError, onScrollToPost, className }: StudyZoneMapProps) {
+export function StudyZoneMap({ sessions, locateSignal, zoomCommand, onBoundsChange, onLocateError, onScrollToPost, className }: StudyZoneMapProps) {
   const markerIcon = useMemo(
     () =>
       L.divIcon({
@@ -141,12 +161,13 @@ export function StudyZoneMap({ sessions, locateSignal, onBoundsChange, onLocateE
 
   return (
     <div className={cn("study-zone-map h-[58vh] min-h-[420px] overflow-hidden rounded-[28px] border border-border-strong bg-surface shadow-[0_10px_40px_var(--shadow)]", className)}>
-      <MapContainer center={malaysiaCenter} zoom={6} scrollWheelZoom className="h-full w-full">
+      <MapContainer center={malaysiaCenter} zoom={6} zoomControl={false} scrollWheelZoom className="h-full w-full">
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <MapEvents locateSignal={locateSignal} onBoundsChange={onBoundsChange} onLocateError={onLocateError} />
+        <MapZoomController zoomCommand={zoomCommand} />
         <MapSizeController sessions={sessions} onBoundsChange={onBoundsChange} />
         <MarkerClusterGroup chunkedLoading>
           {sessions.map((session) => (
