@@ -71,14 +71,16 @@ export function MobileBottomNav() {
                 href={item.href}
                 aria-current={item.active ? "page" : undefined}
                 className={cn(
-                  "flex flex-col items-center gap-1 rounded-2xl py-2 text-xs transition",
+                  "flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-xs transition",
                   item.active
                     ? "border border-border-strong bg-foreground text-background shadow-[0_4px_18px_var(--shadow)]"
                     : "text-text-muted hover:bg-background hover:text-foreground",
                 )}
               >
-                <Icon className="h-4 w-4" />
-                {item.label}
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="block w-full truncate whitespace-nowrap text-center text-[0.68rem] leading-none">
+                  {item.label}
+                </span>
               </Link>
             );
           })}

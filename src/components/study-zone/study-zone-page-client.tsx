@@ -321,17 +321,8 @@ export function StudyZonePageClient() {
         </Button>
       </div>
 
-      <div className="relative">
-        <StudyZoneMap
-          sessions={visibleSessions}
-          locateSignal={locateSignal}
-          zoomCommand={zoomCommand}
-          onBoundsChange={setCurrentBounds}
-          onLocateError={setError}
-          onScrollToPost={scrollToPost}
-          className="h-[40vh] min-h-[320px] rounded-2xl"
-        />
-        <div className="absolute right-3 top-3 z-[500] w-[calc(100%-1.5rem)] max-w-md rounded-2xl border border-border-strong bg-surface/95 p-3 shadow-[0_14px_45px_var(--shadow)] backdrop-blur">
+      <div className="space-y-3 md:relative md:space-y-0">
+        <div className="z-[500] rounded-2xl border border-border-strong bg-surface/95 p-2 shadow-[0_8px_28px_var(--shadow)] backdrop-blur md:absolute md:right-3 md:top-3 md:w-[calc(100%-1.5rem)] md:max-w-md md:p-3 md:shadow-[0_14px_45px_var(--shadow)]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-soft" />
             <Input
@@ -358,6 +349,15 @@ export function StudyZonePageClient() {
             </Button>
           </div>
         </div>
+        <StudyZoneMap
+          sessions={visibleSessions}
+          locateSignal={locateSignal}
+          zoomCommand={zoomCommand}
+          onBoundsChange={setCurrentBounds}
+          onLocateError={setError}
+          onScrollToPost={scrollToPost}
+          className="h-[40vh] min-h-[320px] rounded-2xl"
+        />
       </div>
 
       {error ? <p className="rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">{error}</p> : null}

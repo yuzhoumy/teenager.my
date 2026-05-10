@@ -149,6 +149,7 @@ p {
 .study-zone-map .leaflet-container {
   height: 100%;
   width: 100%;
+  touch-action: none;
   background: var(--surface-muted);
   color: var(--foreground);
   font-family: var(--font-sans-stack);
