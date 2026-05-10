@@ -78,7 +78,7 @@ export function MobileBottomNav() {
                 )}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                <span className="block w-full truncate whitespace-nowrap text-center text-[0.68rem] leading-none">
+                <span className="block w-full text-center text-[0.68rem] leading-tight">
                   {item.label}
                 </span>
               </Link>
