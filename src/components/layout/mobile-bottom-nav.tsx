@@ -37,7 +37,7 @@ export function MobileBottomNav() {
       active: currentPath === "/search" || currentPath === "/resources" || (currentPath.startsWith("/resources") && currentPath !== "/resources/upload"),
     },
     {
-      href: isLoggedIn ? "/leaderboard" : "/login",
+      href: "/leaderboard",
       label: "Leaderboard",
       icon: Trophy,
       active: currentPath === "/leaderboard",
