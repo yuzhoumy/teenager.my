@@ -322,7 +322,7 @@ export function StudyZonePageClient() {
       </div>
 
       <div className="space-y-3 md:relative md:space-y-0">
-        <div className="z-[500] rounded-2xl border border-border-strong bg-surface/95 p-2 shadow-[0_8px_28px_var(--shadow)] backdrop-blur md:absolute md:right-3 md:top-3 md:w-[calc(100%-1.5rem)] md:max-w-md md:p-3 md:shadow-[0_14px_45px_var(--shadow)]">
+        <div className="z-10 rounded-2xl border border-border-strong bg-surface/95 p-2 shadow-[0_8px_28px_var(--shadow)] backdrop-blur md:absolute md:right-3 md:top-3 md:w-[calc(100%-1.5rem)] md:max-w-md md:p-3 md:shadow-[0_14px_45px_var(--shadow)]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-soft" />
             <Input

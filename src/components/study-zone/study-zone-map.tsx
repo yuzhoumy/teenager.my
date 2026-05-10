@@ -163,7 +163,7 @@ export function StudyZoneMap({ sessions, locateSignal, zoomCommand, onBoundsChan
   );
 
   return (
-    <div className={cn("study-zone-map h-[58vh] min-h-[420px] touch-none overflow-hidden overscroll-contain rounded-[28px] border border-border-strong bg-surface shadow-[0_10px_40px_var(--shadow)]", className)}>
+    <div className={cn("study-zone-map relative z-0 isolate h-[58vh] min-h-[420px] touch-none overflow-hidden overscroll-contain rounded-[28px] border border-border-strong bg-surface shadow-[0_10px_40px_var(--shadow)]", className)}>
       <MapContainer center={malaysiaCenter} zoom={6} zoomControl={false} dragging touchZoom scrollWheelZoom className="h-full w-full">
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'

@@ -104,7 +104,7 @@ export function Navbar() {
   const unreadBadgeCount = isLoggedIn ? unreadNotifications : 0;
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur-xl">
+    <header className="sticky top-0 z-[1000] border-b border-border bg-background/90 backdrop-blur-xl">
       <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-3 text-foreground">
           <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-border-strong bg-surface shadow-[0_4px_18px_var(--shadow)]">
