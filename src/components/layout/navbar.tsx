@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, MapPinned, Moon, Sun, Upload, UserCircle2 } from "lucide-react";
+import { Bell, MapPinned, Moon, Sun, Trophy, Upload, UserCircle2 } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
@@ -170,6 +170,11 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-2 lg:hidden">
+          <Button variant="ghost" size="sm" className="rounded-full border border-border bg-surface shadow-[0_0_0_1px_var(--border)]" asChild>
+            <Link href="/leaderboard" aria-label="Leaderboard">
+              <Trophy className="h-4 w-4" />
+            </Link>
+          </Button>
           {isLoggedIn ? (
             <Button variant="ghost" size="sm" className="relative rounded-full border border-border bg-surface shadow-[0_0_0_1px_var(--border)]" asChild>
               <Link href="/notifications" aria-label="Notifications">
