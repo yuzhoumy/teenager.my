@@ -15,6 +15,7 @@ Backend and auth are provided by **[Supabase](https://supabase.com)** (Postgres,
 | **Forum** | Markdown posts and threaded comments; attachments via Supabase Storage when configured. |
 | **Profiles & social** | Public profiles, follows; display names resolved from `profiles` so renames show in the forum. |
 | **Notifications** | In-app feed (follows, forks, comments, mentions, followed-activity, announcements). Backed by Postgres triggers—run the SQL migration in Supabase. |
+| **AI tutor** | Floating Gemini-powered chat (bottom-right). Requires a Google AI API key in env—see below. |
 | **Leaderboard** | Shown when implemented in the app (if your branch includes it). |
 
 ---
@@ -25,6 +26,7 @@ Backend and auth are provided by **[Supabase](https://supabase.com)** (Postgres,
 - **UI:** React 19, Tailwind CSS 4, Radix Slot, Lucide icons.
 - **Data:** `@supabase/supabase-js`, typed tables in `src/types/database.ts`.
 - **Rich content:** `react-markdown`, `react-pdf` / PDF.js (worker URL configurable—see env below), Fabric for canvas annotations.
+- **AI:** `@google/generative-ai` (Google Gemini) for the floating study tutor.
 
 ---
 
@@ -48,8 +50,12 @@ Create **`.env.local`** in the project root (never commit secrets):
 | `NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET` | No | Storage bucket for uploads (default `resource-attachments`). |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server/admin only | Service role—**do not** expose to the browser; only for scripts/admin tooling. |
 | `NEXT_PUBLIC_PDF_WORKER_URL` | No | Override PDF.js worker URL if the default CDN is blocked on your network. |
+| `NEXT_PUBLIC_GEMINI_API_KEY` | For AI tutor | Google AI Studio / Gemini API key. Loaded in the browser for this static-export app—**restrict the key** (HTTP referrer / bundle restrictions in Google Cloud) and rotate if leaked. |
+| `NEXT_PUBLIC_GEMINI_MODEL` | No | Gemini model id (default `gemini-2.0-flash`). |
 
 \*The app runs without them for static pages, but **login, forum, uploads, and data features need Supabase configured.**
+
+The project uses **`output: "export"`**, so there is **no server-side API route** for Gemini—the tutor calls the API from the client. To hide the key entirely you would need a proxy (e.g. Supabase Edge Function or a small backend) and to remove static export or host the API separately.
 
 ---
 

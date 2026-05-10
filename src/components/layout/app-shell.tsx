@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { FloatingAiTutor } from "@/components/layout/floating-ai-tutor";
 import { Footer } from "@/components/layout/footer";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { Navbar } from "@/components/layout/navbar";
@@ -12,6 +13,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </main>
       <Footer />
       <MobileBottomNav />
+      <FloatingAiTutor />
     </div>
   );
 }
