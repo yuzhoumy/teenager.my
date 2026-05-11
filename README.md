@@ -1,6 +1,6 @@
 # teenager.my
 
-A **study commons** web app for Malaysian secondary students: browse and upload learning materials, **fork** PDF-based resources with annotations, discuss in a **forum**, follow other users, and get **notifications** when something relevant happens. The UI is built for long reading sessions—editorial layout, light/dark mode, and layouts tuned for phones and desktops.
+A **study commons** web app for Malaysian secondary students: browse and upload learning materials, **fork** PDF-based resources with annotations, discuss in a **forum**, join nearby **Study Zone** sessions, follow other users, and get **notifications** when something relevant happens. The UI is built for long reading sessions—editorial layout, light/dark mode, and layouts tuned for phones and desktops.
 
 Backend and auth are provided by **[Supabase](https://supabase.com)** (Postgres, Row Level Security, Auth, Storage).
 
@@ -13,6 +13,7 @@ Backend and auth are provided by **[Supabase](https://supabase.com)** (Postgres,
 | **Resources** | Search and filter materials (notes, trial papers, past years, etc.). Resource detail with markdown, embedded PDFs, stars/bookmarks. |
 | **Forks** | Personal forks of a resource with drawing/text annotations on PDFs; community fork listing. |
 | **Forum** | Markdown posts and threaded comments; attachments via Supabase Storage when configured. |
+| **Study Zone** | Map-based study sessions: create a session with a place, subject, time, and capacity; browse nearby sessions; join and comment on session pages. |
 | **Profiles & social** | Public profiles, follows; display names resolved from `profiles` so renames show in the forum. |
 | **Notifications** | In-app feed (follows, forks, comments, mentions, followed-activity, announcements). Backed by Postgres triggers—run the SQL migration in Supabase. |
 | **AI tutor** | Floating Gemini-powered chat (bottom-right). Requires a Google AI API key in env—see below. |
@@ -26,6 +27,7 @@ Backend and auth are provided by **[Supabase](https://supabase.com)** (Postgres,
 - **UI:** React 19, Tailwind CSS 4, Radix Slot, Lucide icons.
 - **Data:** `@supabase/supabase-js`, typed tables in `src/types/database.ts`.
 - **Rich content:** `react-markdown`, `react-pdf` / PDF.js (worker URL configurable—see env below), Fabric for canvas annotations.
+- **Maps:** Leaflet, React Leaflet, and marker clustering for Study Zone sessions.
 - **AI:** `@google/generative-ai` (Google Gemini) for the floating study tutor.
 
 ---
@@ -55,7 +57,7 @@ Create **`.env.local`** in the project root (never commit secrets):
 | `NEXT_PUBLIC_GEMINI_API_KEY` | Tutor on GitHub Pages | Browser fallback when `/api/tutor/` is missing (**embedded in JS** — restrict by referrer). GitHub Actions: add as repository secret; workflow passes it into the build. |
 | `NEXT_PUBLIC_GEMINI_MODEL` | No | Browser fallback model id. |
 
-\*The app runs without Supabase for static-looking pages, but **login, forum, uploads, and data features need Supabase configured.**
+\*The app runs without Supabase for static-looking pages, but **login, forum, Study Zone, uploads, and data features need Supabase configured.**
 
 **Production vs local:** Variables in **`.env.local`** apply only on your machine. The live site reads env vars from **Vercel / Netlify / Cloudflare / etc.** After adding `GEMINI_API_KEY` there, **trigger a new deploy** so the serverless/API routes pick it up.
 
@@ -67,6 +69,7 @@ Schema and policies live under **`supabase/`**:
 
 - `supabase/schema.sql` — baseline tables and RLS.
 - `supabase/resource_schema_migration.sql` — resource/fork-related deltas (if you maintain that file).
+- `supabase/study_sessions_migration.sql` — Study Zone sessions, participants, comments, capacity checks, and RLS.
 - `supabase/notifications_migration.sql` — notifications + announcements + triggers (if you use that feature).
 
 Apply the SQL you need in the Supabase **SQL Editor** (or via the Supabase CLI) so the client matches `src/types/database.ts`. Enable **Realtime** on `notifications` if you want live unread badges in the navbar.
@@ -136,7 +139,7 @@ Point `NEXT_PUBLIC_SUPABASE_URL` and keys at your project. Add your **deployed s
 | Path | Role |
 |------|------|
 | `src/app/` | Routes (App Router), global layout, pages. |
-| `src/components/` | UI: layout, forum, resources, profile, notifications, etc. |
+| `src/components/` | UI: layout, forum, resources, profile, study zone, notifications, etc. |
 | `src/lib/` | Supabase clients, helpers (e.g. `pdfjs-worker`, materials, `gemini-tutor`). |
 | `src/app/api/tutor/` | Server route: Gemini tutor (uses `GEMINI_API_KEY`). |
 | `src/types/database.ts` | Generated or hand-maintained Supabase types. |
