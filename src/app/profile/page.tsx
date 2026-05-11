@@ -464,14 +464,18 @@ export default function ProfilePage() {
 
       {isLoggedIn ? (
         <div className="grid gap-3 sm:grid-cols-2">
-          <Card className="rounded-2xl">
-            <span className="block text-2xl font-semibold text-foreground">{followingCount}</span>
-            <p className="text-sm text-foreground/70">Following</p>
-          </Card>
-          <Card className="rounded-2xl">
-            <span className="block text-2xl font-semibold text-foreground">{followerCount}</span>
-            <p className="text-sm text-foreground/70">Followed by</p>
-          </Card>
+          <Link href="/profile/following" className="rounded-2xl transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+            <Card className="h-full rounded-2xl">
+              <span className="block text-2xl font-semibold text-foreground">{followingCount}</span>
+              <p className="text-sm text-foreground/70">Following</p>
+            </Card>
+          </Link>
+          <Link href="/profile/followers" className="rounded-2xl transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+            <Card className="h-full rounded-2xl">
+              <span className="block text-2xl font-semibold text-foreground">{followerCount}</span>
+              <p className="text-sm text-foreground/70">Followed by</p>
+            </Card>
+          </Link>
         </div>
       ) : null}
 

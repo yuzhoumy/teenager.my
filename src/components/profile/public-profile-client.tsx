@@ -414,14 +414,20 @@ export function PublicProfileClient() {
               <span className="block text-lg font-semibold text-foreground">{forkStarCount}</span>
               Fork stars
             </div>
-            <div className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-text-muted">
+            <Link
+              href={`/users/following?userId=${userId}`}
+              className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-text-muted transition hover:border-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+            >
               <span className="block text-lg font-semibold text-foreground">{followingCount}</span>
               Following
-            </div>
-            <div className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-text-muted">
+            </Link>
+            <Link
+              href={`/users/followers?userId=${userId}`}
+              className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-text-muted transition hover:border-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+            >
               <span className="block text-lg font-semibold text-foreground">{followerCount}</span>
               Followed by
-            </div>
+            </Link>
           </div>
         </div>
 
