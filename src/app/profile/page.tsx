@@ -6,7 +6,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -502,7 +501,7 @@ export default function ProfilePage() {
                     {resource.subject} • {resource.year} • {resource.origin}
                   </p>
                 </div>
-                <Button asChild size="sm">
+                <Button asChild size="sm" variant="outline">
                   <Link href={getMaterialHref(resource)}>
                     <Eye className="h-4 w-4" />
                     View

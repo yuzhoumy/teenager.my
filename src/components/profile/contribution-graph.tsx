@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, GitFork, Upload } from "lucide-react";
+import { ChevronLeft, ChevronRight, GitFork, Upload, Eye } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   buildContributionWeeks,
@@ -184,9 +184,12 @@ export function ContributionGraph({ activity, className }: ContributionGraphProp
                     {item.type === "upload" ? <Upload className="h-3.5 w-3.5" /> : <GitFork className="h-3.5 w-3.5" />}
                     <span>{item.type === "upload" ? "Uploaded resource" : "Forked resource"}: {item.title}</span>
                   </div>
-                  <Link href={item.href} className="text-sky-600 hover:text-sky-500">
-                    View
-                  </Link>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={item.href}>
+                      <Eye className="h-4 w-4" />
+                      View
+                    </Link>
+                  </Button>
                 </li>
               ))}
             </ul>

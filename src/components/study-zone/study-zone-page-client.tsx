@@ -76,6 +76,10 @@ function formatDateTime(value: string | null) {
   });
 }
 
+export function isStudySessionEnded(session: Pick<StudySessionMapItem, "starts_at">) {
+  return Boolean(session.starts_at && new Date(session.starts_at).getTime() < Date.now());
+}
+
 function StartSessionModal({
   onClose,
   onCreated,
@@ -275,6 +279,10 @@ export function StudyZonePageClient() {
         .some((value) => value?.toLowerCase().includes(normalizedFilter)),
     );
   }, [filterText, sessions]);
+  const visibleMapSessions = useMemo(
+    () => visibleSessions.filter((session) => !isStudySessionEnded(session)),
+    [visibleSessions],
+  );
 
   const trendingAreas = useMemo(() => {
     const counts = visibleSessions.reduce<Record<string, number>>((areas, session) => {
@@ -375,7 +383,7 @@ export function StudyZonePageClient() {
           </div>
         </div>
         <StudyZoneMap
-          sessions={visibleSessions}
+          sessions={visibleMapSessions}
           locateSignal={locateSignal}
           zoomCommand={zoomCommand}
           onBoundsChange={setCurrentBounds}
@@ -410,36 +418,44 @@ export function StudyZonePageClient() {
           ) : visibleSessions.length > 0 ? (
             <div className="grid auto-rows-fr gap-4 md:grid-cols-2">
               {visibleSessions.map((session, index) => (
-                <Link
-                  key={session.id}
-                  ref={(node: HTMLAnchorElement | null) => {
-                    postRefs.current[session.id] = node;
-                  }}
-                  href={`/study-zone/session?sessionId=${session.id}`}
-                  id={`study-session-${session.id}`}
-                  className={`block scroll-mt-28 rounded-2xl border border-border bg-surface p-5 shadow-[0_4px_24px_var(--shadow)] hover:border-border-strong hover:bg-surface-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
-                    index % 5 === 0 ? "md:row-span-2" : ""
-                  }`}
-                >
-                  <div className="flex h-full flex-col">
-                    <div className="flex items-start justify-between gap-3">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-border-strong bg-surface-muted">
-                        <MapPinned className="h-4 w-4 text-brand" />
-                      </span>
-                      <span className="rounded-full bg-surface-muted px-3 py-1 text-xs font-semibold text-text-muted">
-                        {session.max_participants} participants
-                      </span>
-                    </div>
-                    <p className="mt-4 text-xs uppercase tracking-[0.16em] text-text-soft">{session.location_name}</p>
-                    <h2 className="mt-1 text-2xl text-foreground">{session.title}</h2>
-                    <p className="mt-2 flex items-center gap-2 text-sm text-text-muted">
-                      <CalendarClock className="h-4 w-4 text-brand" />
-                      {formatDateTime(session.starts_at)}
-                    </p>
-                    {session.description ? <p className="mt-3 text-sm text-text-muted">{session.description}</p> : null}
-                    {session.address ? <p className="mt-auto pt-4 text-xs text-text-soft">{session.address}</p> : null}
-                  </div>
-                </Link>
+                (() => {
+                  const ended = isStudySessionEnded(session);
+
+                  return (
+                    <Link
+                      key={session.id}
+                      ref={(node: HTMLAnchorElement | null) => {
+                        postRefs.current[session.id] = node;
+                      }}
+                      href={`/study-zone/session?sessionId=${session.id}`}
+                      id={`study-session-${session.id}`}
+                      className={`block scroll-mt-28 rounded-2xl border p-5 shadow-[0_4px_24px_var(--shadow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
+                        ended
+                          ? "border-border bg-surface-muted/70 grayscale hover:border-border-strong hover:bg-surface-muted"
+                          : "border-border bg-surface hover:border-border-strong hover:bg-surface-strong"
+                      } ${index % 5 === 0 ? "md:row-span-2" : ""}`}
+                    >
+                      <div className="flex h-full flex-col">
+                        <div className="flex items-start justify-between gap-3">
+                          <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-border-strong ${ended ? "bg-border text-text-soft" : "bg-surface-muted"}`}>
+                            <MapPinned className={`h-4 w-4 ${ended ? "text-text-soft" : "text-brand"}`} />
+                          </span>
+                          <span className="rounded-full bg-surface-muted px-3 py-1 text-xs font-semibold text-text-muted">
+                            {ended ? "Ended" : `${session.max_participants} participants`}
+                          </span>
+                        </div>
+                        <p className="mt-4 text-xs uppercase tracking-[0.16em] text-text-soft">{session.location_name}</p>
+                        <h2 className={`mt-1 text-2xl ${ended ? "text-text-muted" : "text-foreground"}`}>{session.title}</h2>
+                        <p className="mt-2 flex items-center gap-2 text-sm text-text-muted">
+                          <CalendarClock className={`h-4 w-4 ${ended ? "text-text-soft" : "text-brand"}`} />
+                          {formatDateTime(session.starts_at)}
+                        </p>
+                        {session.description ? <p className="mt-3 text-sm text-text-muted">{session.description}</p> : null}
+                        {session.address ? <p className="mt-auto pt-4 text-xs text-text-soft">{session.address}</p> : null}
+                      </div>
+                    </Link>
+                  );
+                })()
               ))}
             </div>
           ) : (

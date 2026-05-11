@@ -551,6 +551,17 @@ create policy "Allow authenticated inserts on forum posts" on public.forum_posts
   for insert
   with check (auth.role() = 'authenticated' and auth.uid() = user_id);
 
+drop policy if exists "Allow users to update own forum posts" on public.forum_posts;
+create policy "Allow users to update own forum posts" on public.forum_posts
+  for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Allow users to delete own forum posts" on public.forum_posts;
+create policy "Allow users to delete own forum posts" on public.forum_posts
+  for delete
+  using (auth.uid() = user_id);
+
 create table if not exists public.forum_comments (
   id uuid primary key default gen_random_uuid(),
   post_id uuid not null references public.forum_posts(id) on delete cascade,

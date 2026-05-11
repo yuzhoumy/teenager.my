@@ -5,8 +5,10 @@ import { useSearchParams } from "next/navigation";
 import { ArrowLeft, CalendarClock, LoaderCircle, MapPinned, MessageSquare, Send, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { AddressPickerMiniMap } from "./address-picker-mini-map";
+import { isStudySessionEnded } from "./study-zone-page-client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { createProfileNameMap, type ProfileNameRow } from "@/lib/profile-names";
 import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 
@@ -37,6 +39,7 @@ export function StudySessionDetailClient() {
   const sessionId = searchParams.get("sessionId");
   const [session, setSession] = useState<StudySession | null>(null);
   const [participants, setParticipants] = useState<StudySessionParticipant[]>([]);
+  const [participantNames, setParticipantNames] = useState<Record<string, string>>({});
   const [comments, setComments] = useState<StudySessionComment[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [commentBody, setCommentBody] = useState("");
@@ -50,6 +53,7 @@ export function StudySessionDetailClient() {
   const maxParticipants = session?.max_participants ?? 0;
   const isJoined = Boolean(currentUserId && participants.some((participant) => participant.user_id === currentUserId));
   const isFull = Boolean(session && participantCount >= session.max_participants);
+  const hasEnded = Boolean(session && isStudySessionEnded(session));
   const googleMapsHref = useMemo(() => {
     if (!session) return "";
     return `https://www.google.com/maps/search/?api=1&query=${session.lat},${session.lng}`;
@@ -89,8 +93,26 @@ export function StudySessionDetailClient() {
       if (participantError) throw participantError;
       if (commentLoadError) throw commentLoadError;
 
+      const nextParticipants = (participantData ?? []) as StudySessionParticipant[];
+      const participantUserIds = Array.from(new Set(nextParticipants.map((participant) => participant.user_id).filter(Boolean))) as string[];
+      let nextParticipantNames: Record<string, string> = {};
+
+      if (participantUserIds.length > 0) {
+        const { data: profileRows, error: profilesError } = await supabase
+          .from("profiles")
+          .select("user_id, display_name")
+          .in("user_id", participantUserIds);
+
+        if (profilesError) {
+          throw profilesError;
+        }
+
+        nextParticipantNames = Object.fromEntries(createProfileNameMap(profileRows as ProfileNameRow[]));
+      }
+
       setSession((sessionData as StudySession | null) ?? null);
-      setParticipants((participantData ?? []) as StudySessionParticipant[]);
+      setParticipants(nextParticipants);
+      setParticipantNames(nextParticipantNames);
       setComments((commentData ?? []) as StudySessionComment[]);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load this study session.");
@@ -108,7 +130,7 @@ export function StudySessionDetailClient() {
   }, [loadSession]);
 
   async function handleJoin() {
-    if (!session || joining || isJoined || isFull) return;
+    if (!session || joining || isJoined || isFull || hasEnded) return;
 
     setError("");
     setJoining(true);
@@ -133,6 +155,10 @@ export function StudySessionDetailClient() {
       if (joinError) throw joinError;
 
       setCurrentUserId(user.id);
+      setParticipantNames((current) => ({
+        ...current,
+        [user.id]: getAuthorName(user),
+      }));
       setParticipants((current) => (current.some((participant) => participant.user_id === user.id) ? current : [...current, data as StudySessionParticipant]));
     } catch (joinError) {
       setError(joinError instanceof Error ? joinError.message : "Unable to join this session.");
@@ -225,6 +251,7 @@ export function StudySessionDetailClient() {
                 <CalendarClock className="h-4 w-4 text-brand" />
                 {formatDateTime(session.starts_at)}
               </span>
+              {hasEnded ? <span className="rounded-full bg-surface-muted px-3 py-1 font-semibold text-text-soft">Ended</span> : null}
               {session.subject ? <span className="rounded-full bg-surface px-3 py-1">{session.subject}</span> : null}
             </div>
             {session.description ? <p className="mt-5 text-base text-text-muted">{session.description}</p> : null}
@@ -294,10 +321,27 @@ export function StudySessionDetailClient() {
                 <Users className="h-5 w-5 text-brand" />
               </span>
             </div>
-            <Button type="button" className="mt-4 w-full" onClick={handleJoin} disabled={joining || isJoined || isFull}>
-              {joining ? "Joining..." : isJoined ? "Joined" : isFull ? "Session full" : "Join"}
+            <Button type="button" className="mt-4 w-full" onClick={handleJoin} disabled={joining || isJoined || isFull || hasEnded}>
+              {joining ? "Joining..." : hasEnded ? "Session ended" : isJoined ? "Joined" : isFull ? "Session full" : "Join"}
             </Button>
+            {hasEnded ? <p className="mt-3 text-sm text-text-muted">This session has ended, so new participants cannot join.</p> : null}
             {error ? <p className="mt-3 text-sm text-[#b53333]">{error}</p> : null}
+            <div className="mt-4 border-t border-border pt-4">
+              <p className="text-sm font-semibold text-foreground">Participant list</p>
+              <div className="mt-3 space-y-2">
+                {participants.length > 0 ? (
+                  participants.map((participant, index) => (
+                    <div key={participant.id} className="rounded-2xl border border-border bg-background px-3 py-2">
+                      <p className="text-sm font-medium text-foreground">
+                        {participantNames[participant.user_id] ?? `Student ${index + 1}`}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-text-muted">No participants yet.</p>
+                )}
+              </div>
+            </div>
           </div>
         </aside>
       </div>

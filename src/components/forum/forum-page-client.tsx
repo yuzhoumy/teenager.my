@@ -3,12 +3,10 @@
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import Link from "next/link";
-import { FileUp, Heart, ImageIcon, MessageSquare, Plus, Reply, Send, Upload, X } from "lucide-react";
+import { Edit3, FileUp, Heart, ImageIcon, MessageSquare, Plus, Reply, Send, Trash2, Upload, X } from "lucide-react";
 import { MarkdownRenderer } from "@/components/resources/markdown-renderer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
@@ -61,6 +59,21 @@ function markdownLink(label: string, href: string) {
   return `[${label}](${href})`;
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (error && typeof error === "object") {
+    const message = "message" in error && typeof error.message === "string" ? error.message : "";
+    const details = "details" in error && typeof error.details === "string" ? error.details : "";
+    const hint = "hint" in error && typeof error.hint === "string" ? error.hint : "";
+    return [message, details, hint].filter(Boolean).join(" ") || fallback;
+  }
+
+  return fallback;
+}
+
 async function uploadForumAttachment(file: File, userId: string) {
   const safeFileName = file.name.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9_.-]/g, "");
   const filePath = `forum/${userId}/${Date.now()}-${safeFileName}`;
@@ -108,14 +121,19 @@ function AuthorLink({ userId, name }: { userId: string | null; name: string }) {
 function ForumPostEditor({
   onCancel,
   onCreated,
+  onUpdated,
+  initialPost,
 }: {
   onCancel: () => void;
-  onCreated: (post: ForumPost) => void;
+  onCreated?: (post: ForumPost) => void;
+  onUpdated?: (postId: string, payload: Pick<ForumPost, "title" | "tag" | "markdown">) => void;
+  initialPost?: ForumPost;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [title, setTitle] = useState("");
-  const [tag, setTag] = useState<(typeof forumTags)[number]>("General");
-  const [markdown, setMarkdown] = useState(starterMarkdown);
+  const mode = initialPost ? "edit" : "create";
+  const [title, setTitle] = useState(initialPost?.title ?? "");
+  const [tag, setTag] = useState<(typeof forumTags)[number]>((initialPost?.tag as (typeof forumTags)[number] | undefined) ?? "General");
+  const [markdown, setMarkdown] = useState(initialPost?.markdown ?? starterMarkdown);
   const [editorMode, setEditorMode] = useState<EditorMode>("edit");
   const [uploadingFile, setUploadingFile] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -143,7 +161,42 @@ function ForumPostEditor({
     try {
       const user = await getSupabaseUser();
       if (!user) {
-        throw new Error("Please log in to create a forum post.");
+        throw new Error(`Please log in to ${mode === "edit" ? "edit" : "create"} a forum post.`);
+      }
+
+      if (mode === "edit") {
+        if (!initialPost) {
+          throw new Error("Missing post details for editing.");
+        }
+
+        const updatePayload: Database["public"]["Tables"]["forum_posts"]["Update"] = {
+          title: trimmedTitle,
+          tag,
+          markdown: trimmedMarkdown,
+        };
+
+        const { data: updatedPost, error: updateError } = await supabase
+          .from("forum_posts")
+          .update(updatePayload as never)
+          .eq("id", initialPost.id)
+          .eq("user_id", user.id)
+          .select("id")
+          .maybeSingle();
+
+        if (updateError) {
+          throw updateError;
+        }
+
+        if (!updatedPost) {
+          throw new Error("Unable to update this post. You can only edit posts created by your current account.");
+        }
+
+        onUpdated?.(initialPost.id, {
+          title: trimmedTitle,
+          tag,
+          markdown: trimmedMarkdown,
+        });
+        return;
       }
 
       const payload: Database["public"]["Tables"]["forum_posts"]["Insert"] = {
@@ -164,9 +217,9 @@ function ForumPostEditor({
         throw insertError;
       }
 
-      onCreated(data as ForumPost);
+      onCreated?.(data as ForumPost);
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Unable to create this post.");
+      setError(getErrorMessage(submitError, `Unable to ${mode === "edit" ? "update" : "create"} this post.`));
     } finally {
       setSubmitting(false);
     }
@@ -201,7 +254,7 @@ function ForumPostEditor({
       });
       setEditorMode("edit");
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Unable to upload attachment.");
+      setError(getErrorMessage(uploadError, "Unable to upload attachment."));
     } finally {
       setUploadingFile(false);
     }
@@ -225,104 +278,140 @@ function ForumPostEditor({
   const pdfCount = Array.from(markdown.matchAll(/\[([^\]]+)\]\(([^)]+)\)/g)).filter((match) => isPdfLink(match[2] ?? "")).length;
   const imageCount = Array.from(markdown.matchAll(/\[([^\]]+)\]\(([^)]+)\)/g)).filter((match) => isImageLink(match[2] ?? "")).length;
 
+  const editorModeToggle = (
+    <div className="inline-flex rounded-full border border-border bg-surface p-1">
+      {(["edit", "raw"] as const).map((nextMode) => (
+        <button
+          key={nextMode}
+          type="button"
+          className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+            editorMode === nextMode
+              ? "bg-foreground text-background"
+              : "text-text-muted hover:text-foreground"
+          }`}
+          onClick={() => setEditorMode(nextMode)}
+        >
+          {nextMode === "edit" ? "Edit" : "Raw"}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
-    <Card className="rounded-[28px] border-border-strong bg-surface-strong p-5">
-      <form onSubmit={handleSubmit} className="space-y-5">
+    <div className="min-w-0 max-w-full overflow-hidden rounded-[24px] border border-border bg-surface p-3 sm:rounded-[32px] sm:p-6">
+      <form onSubmit={handleSubmit}>
         <input ref={fileInputRef} type="file" className="hidden" onChange={handleUploadFile} />
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div>
-            <p className="text-sm uppercase tracking-[0.18em] text-text-soft">New forum post</p>
-            <h2 className="mt-2 text-3xl text-foreground">Start a discussion</h2>
+            <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Forum workspace</p>
+            <h2 className="mt-2 text-3xl text-foreground sm:text-4xl">{mode === "edit" ? "Edit forum post" : "New forum post"}</h2>
           </div>
-          <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-            <X className="h-4 w-4" />
-            Close
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" onClick={onCancel}>
+              <X className="h-4 w-4" />
+              Cancel
+            </Button>
+            <Button type="submit" disabled={submitting}>
+              <Send className="h-4 w-4" />
+              {submitting ? (mode === "edit" ? "Saving..." : "Posting...") : mode === "edit" ? "Save post" : "Publish post"}
+            </Button>
+          </div>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
-          <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Post title" required />
-          <Select value={tag} onChange={(event) => setTag(event.target.value as (typeof forumTags)[number])} required>
-            {forumTags.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </Select>
-        </div>
+        {error ? <p className="mb-4 rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">{error}</p> : null}
 
-        <div className="inline-flex rounded-full border border-border bg-surface p-1">
-          {(["edit", "raw"] as const).map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                editorMode === mode
-                  ? "bg-foreground text-background"
-                  : "text-text-muted hover:text-foreground"
-              }`}
-              onClick={() => setEditorMode(mode)}
-            >
-              {mode === "edit" ? "Edit" : "Raw"}
-            </button>
-          ))}
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="inline-flex items-center gap-2 rounded-full bg-surface px-3 py-1 text-xs font-semibold text-text-muted">
-            <FileUp className="h-3.5 w-3.5" />
-            {pdfCount} PDF link{pdfCount === 1 ? "" : "s"}
-          </span>
-          <span className="inline-flex items-center gap-2 rounded-full bg-surface px-3 py-1 text-xs font-semibold text-text-muted">
-            <ImageIcon className="h-3.5 w-3.5" />
-            {imageCount} image{imageCount === 1 ? "" : "s"}
-          </span>
-          <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploadingFile}>
-            <Upload className="h-4 w-4" />
-            {uploadingFile ? "Uploading..." : "Upload file"}
-          </Button>
-        </div>
+        <div className="min-w-0 max-w-full overflow-hidden rounded-[24px] border border-border bg-background p-3 sm:rounded-[32px] sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Post editor</p>
+              <p className="mt-1 text-sm text-text-muted">
+                Write with markdown, attach files, and preview how your forum post will appear.
+              </p>
+            </div>
 
-        {editorMode === "edit" ? (
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Textarea
-              value={markdown}
-              onChange={(event) => setMarkdown(event.target.value)}
-              className="min-h-[360px]"
-              placeholder="Write with markdown..."
-              required
-            />
-            <div className="min-h-[360px] rounded-[24px] border border-border bg-background p-5">
-              <div className="prose-reset markdown-readme max-w-none">
-                <MarkdownRenderer markdown={markdown} renderPdfLink={renderPdfLink} renderImageLink={renderImageLink} />
-              </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="inline-flex items-center gap-2 rounded-full bg-surface-strong px-3 py-1 text-xs font-semibold text-text-muted">
+                <FileUp className="h-3.5 w-3.5" />
+                {pdfCount} PDF link{pdfCount === 1 ? "" : "s"}
+              </span>
+              <span className="inline-flex items-center gap-2 rounded-full bg-surface-strong px-3 py-1 text-xs font-semibold text-text-muted">
+                <ImageIcon className="h-3.5 w-3.5" />
+                {imageCount} image{imageCount === 1 ? "" : "s"}
+              </span>
+              <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploadingFile}>
+                <Upload className="mr-2 h-4 w-4" />
+                {uploadingFile ? "Uploading..." : "Upload file"}
+              </Button>
             </div>
           </div>
-        ) : (
-          <Textarea
-            value={markdown}
-            onChange={(event) => setMarkdown(event.target.value)}
-            className="min-h-[420px] font-mono text-sm"
-            placeholder="Write raw markdown..."
-            required
-          />
-        )}
 
-        {error ? <p className="text-sm text-[#b53333]">{error}</p> : null}
+          <div className="mt-4 grid gap-3 rounded-[20px] border border-border bg-surface p-3 sm:mt-6 sm:rounded-[24px] sm:p-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+            <div>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Title</p>
+                <p className="text-xs font-medium text-text-soft">Required</p>
+              </div>
+              <Textarea
+                className="mt-3 min-h-16 border border-border bg-background text-lg"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="Add a title for this discussion..."
+                aria-required="true"
+                required
+              />
+            </div>
 
-        <div className="flex flex-wrap justify-end gap-3">
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={submitting}>
-            <Send className="h-4 w-4" />
-            {submitting ? "Posting..." : "Publish post"}
-          </Button>
+            <div>
+              <p className="mb-2 text-sm uppercase tracking-[0.18em] text-text-soft">Tag</p>
+              <Select value={tag} onChange={(event) => setTag(event.target.value as (typeof forumTags)[number])} required>
+                {forumTags.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </div>
+
+          {editorMode === "edit" ? (
+            <div className="mt-4 sm:mt-6">
+              <div className="min-w-0 max-w-full overflow-hidden rounded-[20px] border border-border bg-surface p-2 sm:rounded-[24px] sm:p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Preview</p>
+                  {editorModeToggle}
+                </div>
+                <div className="mt-2 min-w-0 max-w-full sm:mt-4">
+                  <MarkdownRenderer
+                    markdown={markdown}
+                    editable
+                    onMarkdownChange={setMarkdown}
+                    renderPdfLink={renderPdfLink}
+                    renderImageLink={renderImageLink}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4 rounded-[20px] border border-border bg-surface p-3 sm:mt-6 sm:rounded-[24px] sm:p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Raw markdown</p>
+                {editorModeToggle}
+              </div>
+              <p className="mt-2 text-sm text-text-muted">Edit the source directly when you need exact markdown control.</p>
+              <Textarea
+                className="mt-4 min-h-[620px] border border-border bg-[#0e1118] font-mono text-sm text-white"
+                value={markdown}
+                onChange={(event) => setMarkdown(event.target.value)}
+                placeholder="Write your forum post in markdown..."
+                required
+              />
+            </div>
+          )}
         </div>
       </form>
-    </Card>
+    </div>
   );
 }
-
 function ForumPostCard({
   post,
   comments,
@@ -345,10 +434,7 @@ function ForumPostCard({
   onPostDeleted: (postId: string) => void;
 }) {
   const [editingPost, setEditingPost] = useState(false);
-  const [editTitle, setEditTitle] = useState(post.title);
-  const [editTag, setEditTag] = useState(post.tag);
-  const [editMarkdown, setEditMarkdown] = useState(post.markdown);
-  const [updatingPost, setUpdatingPost] = useState(false);
+  const editEditorRef = useRef<HTMLDivElement | null>(null);
   const [deletingPost, setDeletingPost] = useState(false);
   const [commentBody, setCommentBody] = useState("");
   const [replyTarget, setReplyTarget] = useState<ForumComment | null>(null);
@@ -365,6 +451,16 @@ function ForumPostCard({
       grouped[comment.parent_comment_id] = [...(grouped[comment.parent_comment_id] ?? []), comment];
       return grouped;
     }, {});
+
+  useEffect(() => {
+    if (!editingPost) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      editEditorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [editingPost]);
 
   async function handleCommentSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -411,7 +507,7 @@ function ForumPostCard({
       setCommentBody("");
       setReplyTarget(null);
     } catch (submitError) {
-      setCommentError(submitError instanceof Error ? submitError.message : "Unable to add this comment.");
+      setCommentError(getErrorMessage(submitError, "Unable to add this comment."));
     } finally {
       setSubmittingComment(false);
     }
@@ -432,63 +528,6 @@ function ForumPostCard({
       const mention = `@${comment.author_name} `;
       return current.startsWith(mention) ? current : mention;
     });
-  }
-
-  async function handlePostUpdate(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setPostActionError("");
-
-    if (!canManagePost) {
-      setPostActionError("You can only edit your own posts.");
-      return;
-    }
-
-    const trimmedTitle = editTitle.trim();
-    const trimmedTag = editTag.trim();
-    const trimmedMarkdown = editMarkdown.trim();
-
-    if (!trimmedTitle || !trimmedTag || !trimmedMarkdown) {
-      setPostActionError("Please add a title, tag, and post content.");
-      return;
-    }
-
-    if (!isSupabaseConfigured) {
-      setPostActionError("Supabase is not configured.");
-      return;
-    }
-
-    setUpdatingPost(true);
-    try {
-      const user = await getSupabaseUser();
-      if (!user) {
-        throw new Error("Please log in to edit your post.");
-      }
-
-      const { error } = await supabase
-        .from("forum_posts")
-        .update({
-          title: trimmedTitle,
-          tag: trimmedTag,
-          markdown: trimmedMarkdown,
-        } as never)
-        .eq("id", post.id)
-        .eq("user_id", user.id);
-
-      if (error) {
-        throw error;
-      }
-
-      onPostUpdated(post.id, {
-        title: trimmedTitle,
-        tag: trimmedTag,
-        markdown: trimmedMarkdown,
-      });
-      setEditingPost(false);
-    } catch (updateError) {
-      setPostActionError(updateError instanceof Error ? updateError.message : "Unable to update this post.");
-    } finally {
-      setUpdatingPost(false);
-    }
   }
 
   async function handleDeletePost() {
@@ -515,22 +554,6 @@ function ForumPostCard({
         throw new Error("Please log in to delete your post.");
       }
 
-      const { error: deleteCommentsError } = await supabase
-        .from("forum_comments")
-        .delete()
-        .eq("post_id", post.id);
-      if (deleteCommentsError) {
-        throw deleteCommentsError;
-      }
-
-      const { error: deleteLovesError } = await supabase
-        .from("forum_post_loves")
-        .delete()
-        .eq("post_id", post.id);
-      if (deleteLovesError) {
-        throw deleteLovesError;
-      }
-
       const { error: deletePostError } = await supabase
         .from("forum_posts")
         .delete()
@@ -542,7 +565,7 @@ function ForumPostCard({
 
       onPostDeleted(post.id);
     } catch (deleteError) {
-      setPostActionError(deleteError instanceof Error ? deleteError.message : "Unable to delete this post.");
+      setPostActionError(getErrorMessage(deleteError, "Unable to delete this post."));
     } finally {
       setDeletingPost(false);
     }
@@ -615,41 +638,19 @@ function ForumPostCard({
 
       <div className="mt-5 border-t border-border pt-5">
         {editingPost ? (
-          <form onSubmit={handlePostUpdate} className="space-y-3">
-            <Input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} placeholder="Post title" required />
-            <Select value={editTag} onChange={(event) => setEditTag(event.target.value)} required>
-              {forumTags.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </Select>
-            <Textarea
-              value={editMarkdown}
-              onChange={(event) => setEditMarkdown(event.target.value)}
-              className="min-h-[260px]"
-              required
+          <div ref={editEditorRef} className="scroll-mt-28">
+            <ForumPostEditor
+              initialPost={post}
+              onCancel={() => {
+                setEditingPost(false);
+                setPostActionError("");
+              }}
+              onUpdated={(postId, payload) => {
+                onPostUpdated(postId, payload);
+                setEditingPost(false);
+              }}
             />
-            {postActionError ? <p className="text-sm text-[#b53333]">{postActionError}</p> : null}
-            <div className="flex flex-wrap justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setEditingPost(false);
-                  setEditTitle(post.title);
-                  setEditTag(post.tag);
-                  setEditMarkdown(post.markdown);
-                  setPostActionError("");
-                }}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={updatingPost}>
-                {updatingPost ? "Saving..." : "Save post"}
-              </Button>
-            </div>
-          </form>
+          </div>
         ) : (
           <div className="prose-reset markdown-readme max-w-none">
             <MarkdownRenderer markdown={post.markdown} renderPdfLink={renderPdfLink} renderImageLink={renderImageLink} />
@@ -665,17 +666,16 @@ function ForumPostCard({
               size="sm"
               variant="outline"
               onClick={() => {
-                setEditTitle(post.title);
-                setEditTag(post.tag);
-                setEditMarkdown(post.markdown);
                 setPostActionError("");
                 setEditingPost(true);
               }}
             >
+              <Edit3 className="h-4 w-4" />
               Edit post
             </Button>
           ) : null}
           <Button type="button" size="sm" variant="outline" onClick={() => void handleDeletePost()} disabled={deletingPost || editingPost}>
+            <Trash2 className="h-4 w-4" />
             {deletingPost ? "Deleting..." : "Delete post"}
           </Button>
         </div>
@@ -805,7 +805,7 @@ export function ForumPageClient() {
         }
       } catch (loadError) {
         if (!cancelled) {
-          setError(loadError instanceof Error ? loadError.message : "Unable to load forum posts.");
+          setError(getErrorMessage(loadError, "Unable to load forum posts."));
           setPosts([]);
         }
       } finally {

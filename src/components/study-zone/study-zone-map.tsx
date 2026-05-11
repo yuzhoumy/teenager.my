@@ -5,7 +5,7 @@ import type { LatLngBounds } from "leaflet";
 import { useEffect, useMemo } from "react";
 import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
-import type { StudySessionMapItem, StudyZoneBounds, StudyZoneZoomCommand } from "./study-zone-page-client";
+import { isStudySessionEnded, type StudySessionMapItem, type StudyZoneBounds, type StudyZoneZoomCommand } from "./study-zone-page-client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +20,10 @@ type StudyZoneMapProps = {
 };
 
 const malaysiaCenter: [number, number] = [4.2105, 101.9758];
+
+function isMapMounted(map: L.Map) {
+  return map.getContainer().isConnected;
+}
 
 function toStudyZoneBounds(bounds: LatLngBounds): StudyZoneBounds {
   const southWest = bounds.getSouthWest();
@@ -64,7 +68,11 @@ function MapEvents({ locateSignal, onBoundsChange, onLocateError }: Pick<StudyZo
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        map.flyTo([position.coords.latitude, position.coords.longitude], 14, { duration: 0.8 });
+        if (!isMapMounted(map)) {
+          return;
+        }
+
+        map.setView([position.coords.latitude, position.coords.longitude], 14, { animate: false });
       },
       () => onLocateError("Unable to get your location. Check browser permission and try again."),
       { enableHighAccuracy: true, timeout: 10000 },
@@ -82,12 +90,16 @@ function MapZoomController({ zoomCommand }: Pick<StudyZoneMapProps, "zoomCommand
       return;
     }
 
-    if (zoomCommand.direction === "in") {
-      map.zoomIn();
+    if (!isMapMounted(map)) {
       return;
     }
 
-    map.zoomOut();
+    if (zoomCommand.direction === "in") {
+      map.zoomIn(1, { animate: false });
+      return;
+    }
+
+    map.zoomOut(1, { animate: false });
   }, [map, zoomCommand]);
 
   return null;
@@ -104,6 +116,10 @@ function MapSizeController({ sessions, onBoundsChange }: Pick<StudyZoneMapProps,
     const container = map.getContainer();
 
     const refreshSize = () => {
+      if (!isMapMounted(map)) {
+        return;
+      }
+
       map.invalidateSize({ pan: false });
       onBoundsChange(toStudyZoneBounds(map.getBounds()));
     };
@@ -125,21 +141,29 @@ function MapSizeController({ sessions, onBoundsChange }: Pick<StudyZoneMapProps,
   }, [map, onBoundsChange]);
 
   useEffect(() => {
+    if (!isMapMounted(map)) {
+      return;
+    }
+
     map.invalidateSize({ pan: false });
     const refreshAfterMove = window.setTimeout(() => {
+      if (!isMapMounted(map)) {
+        return;
+      }
+
       map.invalidateSize({ pan: false });
       onBoundsChange(toStudyZoneBounds(map.getBounds()));
     }, 350);
 
     if (sessions.length === 1) {
-      map.setView([sessions[0].lat, sessions[0].lng], 14, { animate: true });
+      map.setView([sessions[0].lat, sessions[0].lng], 14, { animate: false });
       onBoundsChange(toStudyZoneBounds(map.getBounds()));
       return () => window.clearTimeout(refreshAfterMove);
     }
 
     if (sessions.length > 1) {
       const bounds = L.latLngBounds(sessions.map((session) => [session.lat, session.lng]));
-      map.fitBounds(bounds, { padding: [42, 42], maxZoom: 14, animate: true });
+      map.fitBounds(bounds, { padding: [42, 42], maxZoom: 14, animate: false });
       onBoundsChange(toStudyZoneBounds(map.getBounds()));
     }
 
@@ -150,7 +174,7 @@ function MapSizeController({ sessions, onBoundsChange }: Pick<StudyZoneMapProps,
 }
 
 export function StudyZoneMap({ sessions, locateSignal, zoomCommand, onBoundsChange, onLocateError, onScrollToPost, className }: StudyZoneMapProps) {
-  const markerIcon = useMemo(
+  const activeMarkerIcon = useMemo(
     () =>
       L.divIcon({
         className: "study-zone-marker-icon",
@@ -161,10 +185,32 @@ export function StudyZoneMap({ sessions, locateSignal, zoomCommand, onBoundsChan
       }),
     [],
   );
+  const endedMarkerIcon = useMemo(
+    () =>
+      L.divIcon({
+        className: "study-zone-marker-icon",
+        html: '<span class="study-zone-marker study-zone-marker-ended"></span>',
+        iconSize: [34, 34],
+        iconAnchor: [17, 34],
+        popupAnchor: [0, -30],
+      }),
+    [],
+  );
 
   return (
     <div className={cn("study-zone-map relative z-0 isolate h-[58vh] min-h-[420px] touch-none overflow-hidden overscroll-contain rounded-[28px] border border-border-strong bg-surface shadow-[0_10px_40px_var(--shadow)]", className)}>
-      <MapContainer center={malaysiaCenter} zoom={6} zoomControl={false} dragging touchZoom scrollWheelZoom className="h-full w-full">
+      <MapContainer
+        center={malaysiaCenter}
+        zoom={6}
+        zoomControl={false}
+        zoomAnimation={false}
+        markerZoomAnimation={false}
+        fadeAnimation={false}
+        dragging
+        touchZoom
+        scrollWheelZoom
+        className="h-full w-full"
+      >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -173,25 +219,30 @@ export function StudyZoneMap({ sessions, locateSignal, zoomCommand, onBoundsChan
         <MapZoomController zoomCommand={zoomCommand} />
         <MapSizeController sessions={sessions} onBoundsChange={onBoundsChange} />
         <MarkerClusterGroup chunkedLoading>
-          {sessions.map((session) => (
-            <Marker key={session.id} position={[session.lat, session.lng]} icon={markerIcon}>
-              <Popup>
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.16em] text-text-soft">{session.location_name}</p>
-                    <h3 className="mt-1 font-serif text-lg leading-tight text-foreground">{session.title}</h3>
-                    {session.subject ? <p className="mt-1 text-sm text-text-muted">{session.subject}</p> : null}
-                    {session.starts_at ? (
-                      <p className="mt-1 text-sm text-text-muted">{new Date(session.starts_at).toLocaleString()}</p>
-                    ) : null}
+          {sessions.map((session) => {
+            const ended = isStudySessionEnded(session);
+
+            return (
+              <Marker key={session.id} position={[session.lat, session.lng]} icon={ended ? endedMarkerIcon : activeMarkerIcon}>
+                <Popup>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.16em] text-text-soft">{session.location_name}</p>
+                      <h3 className="mt-1 font-serif text-lg leading-tight text-foreground">{session.title}</h3>
+                      {ended ? <p className="mt-1 text-sm font-semibold text-text-soft">Ended</p> : null}
+                      {session.subject ? <p className="mt-1 text-sm text-text-muted">{session.subject}</p> : null}
+                      {session.starts_at ? (
+                        <p className="mt-1 text-sm text-text-muted">{new Date(session.starts_at).toLocaleString()}</p>
+                      ) : null}
+                    </div>
+                    <Button type="button" size="sm" variant={ended ? "outline" : "default"} onClick={() => onScrollToPost(session.id)}>
+                      Scroll to Post
+                    </Button>
                   </div>
-                  <Button type="button" size="sm" onClick={() => onScrollToPost(session.id)}>
-                    Scroll to Post
-                  </Button>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
+                </Popup>
+              </Marker>
+            );
+          })}
         </MarkerClusterGroup>
       </MapContainer>
     </div>

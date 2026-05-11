@@ -166,8 +166,7 @@ export function ResourcesPageClient() {
           <p className="text-sm uppercase tracking-[0.18em] text-text-soft">Metadata search</p>
           <h1 className="mt-2 text-4xl text-foreground sm:text-5xl">Study resources</h1>
           <p className="mt-3 max-w-3xl text-base text-text-muted">
-            Filter by grade, subject, and tags with shareable URLs. Open each resource as its own page with
-            markdown content and attachment links kept inside the write-up.
+            Filter by grade, subject, and tags.
           </p>
         </div>
       </div>
