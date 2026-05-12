@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, FileUp, ImageIcon, LoaderCircle, Upload, X } from "lucide-react";
 import Link from "next/link";
-import { getMaterialFacets, materialGradeLabels, materialTags, getMaterialTagLabel } from "@/lib/materials";
+import { getMaterialFacets, materialGradeLabels, materialSubjects, materialTags, getMaterialTagLabel } from "@/lib/materials";
 import { getSupabaseUser, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import type { Database, MaterialGrade, MaterialTag } from "@/types/database";
 import type { StudyMaterial } from "@/types/resource";
@@ -25,27 +25,6 @@ type EditorMode = "edit" | "raw";
 const bucketName = process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET ?? "resource-attachments";
 const currentYear = new Date().getFullYear();
 const initialMarkdown = "# Click to edit title\n\nClick to edit text. You can use markdown to format the content. Upload a file by clicking \"Upload File\" button at the top. You can upload multiple files and place the links anywhere in the content.\n\n---\n\n";
-const fallbackSubjects = [
-  "Additional Mathematics",
-  "Bahasa Melayu",
-  "Biology",
-  "Chemistry",
-  "English",
-  "Mathematics",
-  "Physics",
-  "Science",
-  "Sejarah",
-  "Pendidikan Moral",
-  "Pendidikan Islam",
-  "Bahasa Cina",
-  "Bahasa Tamil",
-  "Geography",
-  "RBT",
-  "Asas Sains Komputer",
-  "Prinsip Perakaunan",
-  "Ekonomi",
-  "Sains Komputer",
-];
 
 function createSlug(title: string) {
   const baseSlug = title
@@ -124,7 +103,7 @@ export function UploadResourceWorkspace({ mode = "create", initialMaterial }: Up
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [subjectOptions, setSubjectOptions] = useState(fallbackSubjects);
+  const [subjectOptions, setSubjectOptions] = useState<string[]>([...materialSubjects]);
 
   useEffect(() => {
     let cancelled = false;
@@ -137,10 +116,10 @@ export function UploadResourceWorkspace({ mode = "create", initialMaterial }: Up
         }
 
         const nextSubjects = facets.subjects.map((option) => option.value).filter(Boolean);
-        setSubjectOptions(nextSubjects.length > 0 ? nextSubjects : fallbackSubjects);
+        setSubjectOptions(nextSubjects.length > 0 ? nextSubjects : [...materialSubjects]);
       } catch {
         if (!cancelled) {
-          setSubjectOptions(fallbackSubjects);
+          setSubjectOptions([...materialSubjects]);
         }
       }
     }

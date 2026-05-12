@@ -29,6 +29,27 @@ type MaterialFacetRow = Pick<StudyMaterial, "subject" | "category_tags">;
 
 export const materialGrades: MaterialGrade[] = ["f1", "f2", "f3", "f4", "f5"];
 export const materialTags: MaterialTag[] = ["exercise", "note", "textbook", "trial-paper", "past-year-paper", "exam-paper"];
+export const materialSubjects = [
+  "Additional Mathematics",
+  "Bahasa Melayu",
+  "Biology",
+  "Chemistry",
+  "English",
+  "Mathematics",
+  "Physics",
+  "Science",
+  "Sejarah",
+  "Pendidikan Moral",
+  "Pendidikan Islam",
+  "Bahasa Cina",
+  "Bahasa Tamil",
+  "Geography",
+  "RBT",
+  "Asas Sains Komputer",
+  "Prinsip Perakaunan",
+  "Ekonomi",
+  "Sains Komputer",
+] as const;
 
 export const materialGradeLabels: Record<MaterialGrade, string> = {
   f1: "Form 1",
@@ -339,9 +360,9 @@ export async function getMaterialFacets(): Promise<MaterialFacets> {
     }
   }
 
-  const subjects = Array.from(subjectCounts.entries())
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([value, count]) => ({ value, label: value, count }));
+  const subjects = Array.from(new Set([...materialSubjects, ...subjectCounts.keys()]))
+    .sort((left, right) => left.localeCompare(right))
+    .map((value) => ({ value, label: value, count: subjectCounts.get(value) ?? 0 }));
 
   const tags = materialTags
     .filter((tag) => tagCounts.has(tag))

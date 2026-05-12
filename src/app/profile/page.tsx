@@ -521,7 +521,7 @@ export default function ProfilePage() {
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-semibold">Uploaded Resources</h2>
           <Button asChild size="sm">
-            <Link href="/resources/upload">
+            <Link href="/resources/upload/">
               <Upload className="h-4 w-4" />
               Upload resource
             </Link>
