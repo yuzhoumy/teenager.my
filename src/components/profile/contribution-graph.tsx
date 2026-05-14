@@ -16,6 +16,7 @@ type ContributionGraphProps = {
 };
 
 const monthLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const CONTRIBUTION_CELL_SIZE_PX = 14;
 const WEEK_COLUMN_WIDTH_PX = 18;
 const WEEKDAY_COLUMN_WIDTH_PX = 26;
 const NAV_BUTTON_WITH_GAP_PX = 40;
@@ -144,6 +145,12 @@ export function ContributionGraph({ activity, className }: ContributionGraphProp
                       !cell.isFuture ? "hover:brightness-110" : "cursor-default",
                     )}
                     title={`${cell.count} contribution${cell.count === 1 ? "" : "s"} on ${new Date(`${cell.dateKey}T00:00:00.000Z`).toLocaleDateString()}`}
+                    style={{
+                      height: CONTRIBUTION_CELL_SIZE_PX,
+                      minHeight: CONTRIBUTION_CELL_SIZE_PX,
+                      minWidth: CONTRIBUTION_CELL_SIZE_PX,
+                      width: CONTRIBUTION_CELL_SIZE_PX,
+                    }}
                     onClick={() => {
                       if (cell.isFuture || cell.count === 0) {
                         setSelectedDateKey(cell.dateKey);
